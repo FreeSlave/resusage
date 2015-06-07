@@ -1,5 +1,21 @@
+/**
+ * CPU time used by system or process.
+ * Authors: 
+ *  $(LINK2 https://github.com/MyLittleRobo, Roman Chistokhodov).
+ * License: 
+ *  $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0).
+ */
+
 module resusage.cpu;
+
 import std.exception;
+
+///Base interface for cpu watchers
+interface CPUWatcher
+{
+    ///CPU time currently used, in percents.
+    @safe double current();
+}
 
 version(linux)
 {
@@ -20,18 +36,13 @@ version(linux)
         fclose(f);
     }
     
-    interface CPUWatcher
-    {
-        @safe double current();
-    }
-    
-    final class SystemCPUWatcher : CPUWatcher
+    private class LinuxSystemCPUWatcher : CPUWatcher
     {
         @safe this() {
             readProcStat(lastTotalUser, lastTotalUserLow, lastTotalSys, lastTotalIdle);
         }
         
-        @safe double current()
+        @safe override double current()
         {
             ulong totalUser, totalUserLow, totalSys, totalIdle;
             readProcStat(totalUser, totalUserLow, totalSys, totalIdle);
@@ -89,9 +100,9 @@ version(linux)
         fclose(f);
     }
 
-    final class ProcessCPUWatcher : CPUWatcher
+    private class LinuxProcessCPUWatcher : CPUWatcher
     {
-        @safe this(pid_t pid) {
+        @safe this(int pid) {
             _proc = toStringz("/proc/" ~ to!string(pid) ~ "/stat");
             init();
         }
@@ -101,7 +112,7 @@ version(linux)
             init();
         }
         
-        @safe double current()
+        @safe override double current()
         {
             clock_t nowCPU, nowUserCPU, nowSysCPU;
             double percent;
@@ -133,4 +144,55 @@ version(linux)
         const(char)* _proc;
         clock_t lastCPU, lastUserCPU, lastSysCPU;
     }
+    
+    alias LinuxSystemCPUWatcher PlatformSystemCPUWatcher;
+    alias LinuxProcessCPUWatcher PlatformProcessCPUWatcher;
 }
+
+///System CPU watcher.
+final class SystemCPUWatcher : PlatformSystemCPUWatcher
+{
+    /**
+     * Watch system.
+     * Throws:
+     *  ErrnoException on Linux if an error occured.
+     */
+    @safe this() {
+        super();
+    }
+    
+    /**
+     * CPU time used by all processes in the system, in percents.
+     * Throws:
+     *  ErrnoException on Linux if an error occured.
+     */
+    @safe override double current() {
+        return super.current();
+    }
+}
+
+///CPU watcher for single process.
+final class ProcessCPUWatcher : PlatformProcessCPUWatcher
+{
+    /**
+     * Watch process by id.
+     * Throws:
+     *  ErrnoException on Linux if an error occured.
+     */
+    @safe this(int pid) {
+        super(pid);
+    }
+    ///ditto, but watch this process.
+    @safe this() {
+        super();
+    }
+    /**
+     * CPU time used by underlying process, in percents.
+     * Throws:
+     *  ErrnoException on Linux if an error occured.
+     */
+    @safe override double current() {
+        return super.current();
+    }
+}
+

@@ -1,6 +1,6 @@
 {
     "name" : "resusage", 
-    "description" : "Virtual memory, RAM usage by system or process", 
+    "description" : "Virtual memory, RAM, CPU usage by system or process", 
     "license" : "BSL-1.0", 
     "authors" : ["Roman Chistokhodov"], 
 
