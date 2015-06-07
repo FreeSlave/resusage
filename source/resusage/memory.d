@@ -1,4 +1,4 @@
-module resusage;
+module resusage.memory;
 
 import std.exception;
 
@@ -14,8 +14,6 @@ version(linux)
         import std.conv : to;
         import std.string : toStringz;
     }
-    
-    alias pid_t osProcessHandle;
     
     private @trusted void memoryUsedHelper(const(char)* proc, ref c_ulong vsize, ref c_long rss)
     {
@@ -83,12 +81,12 @@ version(linux)
         return vsize;
     }
     
-    @trusted ulong virtualMemoryUsedByProcess(osProcessHandle handle)
+    @trusted ulong virtualMemoryUsedByProcess(int pid)
     {
         c_ulong vsize;
         c_long rss;
         
-        memoryUsedHelper(toStringz("/proc/" ~ to!string(handle) ~ "/stat"), vsize, rss);
+        memoryUsedHelper(toStringz("/proc/" ~ to!string(pid) ~ "/stat"), vsize, rss);
         return vsize;
     }
     
@@ -120,12 +118,12 @@ version(linux)
         return rss;
     }
     
-    @trusted ulong physicalMemoryUsedByProcess(osProcessHandle handle)
+    @trusted ulong physicalMemoryUsedByProcess(int pid)
     {
         c_ulong vsize;
         c_long rss;
         
-        memoryUsedHelper(toStringz("/proc/" ~ to!string(handle) ~ "/stat"), vsize, rss);
+        memoryUsedHelper(toStringz("/proc/" ~ to!string(pid) ~ "/stat"), vsize, rss);
         return rss;
     }
 }

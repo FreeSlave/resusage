@@ -1,6 +1,6 @@
 import std.stdio;
 import std.conv;
-import resusage;
+import resusage.memory;
 
 void main(string[] args)
 {
@@ -9,12 +9,9 @@ void main(string[] args)
         writeln("Physical memory used by this process: ", physicalMemoryUsedByProcess());
     } else {
         string pidStr = args[1];
-        version(linux)
-        {
-            import core.sys.posix.sys.types;
-            pid_t pid = to!pid_t(pidStr);
-            writeln("Virtual memory used by process: ", virtualMemoryUsedByProcess(pid));
-            writeln("Physical memory used by process: ", physicalMemoryUsedByProcess(pid));
-        }
+
+        auto pid = to!int(pidStr);
+        writeln("Virtual memory used by process: ", virtualMemoryUsedByProcess(pid));
+        writeln("Physical memory used by process: ", physicalMemoryUsedByProcess(pid));
     }
 }

@@ -1,5 +1,5 @@
 import std.stdio;
-import resusage;
+import resusage.memory;
 
 void main()
 {
