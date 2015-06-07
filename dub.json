@@ -1,0 +1,12 @@
+{
+    "name" : "resusage", 
+    "description" : "Virtual memory, RAM usage by system or process", 
+    "license" : "BSL-1.0", 
+    "authors" : ["Roman Chistokhodov"], 
+
+    "targetName" : "resusage", 
+    "targetPath" : "lib", 
+    "targetType" : "library",
+
+    "subPackages" : ["./examples/totalusage", "./examples/processusage"]
+}
