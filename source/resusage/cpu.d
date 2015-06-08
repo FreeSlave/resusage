@@ -36,13 +36,13 @@ version(linux)
         fclose(f);
     }
     
-    private class LinuxSystemCPUWatcher : CPUWatcher
+    private struct PlatformSystemCPUWatcher
     {
-        @safe this() {
+        @trusted init() {
             readProcStat(lastTotalUser, lastTotalUserLow, lastTotalSys, lastTotalIdle);
         }
         
-        @safe override double current()
+        @safe double current()
         {
             ulong totalUser, totalUserLow, totalSys, totalIdle;
             readProcStat(totalUser, totalUserLow, totalSys, totalIdle);
@@ -52,7 +52,7 @@ version(linux)
             if (totalUser < lastTotalUser || totalUserLow < lastTotalUserLow ||
                 totalSys < lastTotalSys || totalIdle < lastTotalIdle){
                 //Overflow detection. Just skip this value.
-                percent = -1.0;
+                return lastPercent;
             } else {
                 auto total = (totalUser - lastTotalUser) + (totalUserLow - lastTotalUserLow) + (totalSys - lastTotalSys);
                 percent = total;
@@ -66,12 +66,13 @@ version(linux)
             lastTotalSys = totalSys;
             lastTotalIdle = totalIdle;
             
-            
+            lastPercent = percent;
             return percent;
         }
         
     private:
         ulong lastTotalUser, lastTotalUserLow, lastTotalSys, lastTotalIdle;
+        double lastPercent;
     }
     
     private @trusted void timesHelper(const char* proc, ref clock_t utime, ref clock_t stime)
@@ -100,19 +101,21 @@ version(linux)
         fclose(f);
     }
 
-    private class LinuxProcessCPUWatcher : CPUWatcher
+    private struct PlatformProcessCPUWatcher
     {
-        @safe this(int pid) {
+        @trusted init(int pid) {
             _proc = toStringz("/proc/" ~ to!string(pid) ~ "/stat");
-            init();
+            lastCPU = clock();
+            timesHelper(_proc, lastUserCPU, lastSysCPU);
         }
         
-        @safe this() {
+        @trusted init() {
             _proc = "/proc/self/stat".ptr;
-            init();
+            lastCPU = clock();
+            timesHelper(_proc, lastUserCPU, lastSysCPU);
         }
         
-        @safe override double current()
+        @safe double current()
         {
             clock_t nowCPU, nowUserCPU, nowSysCPU;
             double percent;
@@ -122,7 +125,7 @@ version(linux)
             
             if (nowCPU <= lastCPU || nowUserCPU < lastUserCPU || nowSysCPU < lastSysCPU) {
                 //Overflow detection. Just skip this value.
-                percent = -1.0;
+                return lastPercent;
             } else {
                 percent = (nowSysCPU - lastSysCPU) + (nowUserCPU - lastUserCPU);
                 percent /= (nowCPU - lastCPU);
@@ -132,25 +135,19 @@ version(linux)
             lastCPU = nowCPU;
             lastUserCPU = nowUserCPU;
             lastSysCPU = nowSysCPU;
+            lastPercent = percent;
             return percent;
         }
         
     private:
-        @trusted void init() {
-            lastCPU = clock();
-            timesHelper(_proc, lastUserCPU, lastSysCPU);
-        }
-        
+        double lastPercent;
         const(char)* _proc;
         clock_t lastCPU, lastUserCPU, lastSysCPU;
     }
-    
-    alias LinuxSystemCPUWatcher PlatformSystemCPUWatcher;
-    alias LinuxProcessCPUWatcher PlatformProcessCPUWatcher;
 }
 
 ///System CPU watcher.
-final class SystemCPUWatcher : PlatformSystemCPUWatcher
+final class SystemCPUWatcher : CPUWatcher
 {
     /**
      * Watch system.
@@ -158,7 +155,7 @@ final class SystemCPUWatcher : PlatformSystemCPUWatcher
      *  ErrnoException on Linux if an error occured.
      */
     @safe this() {
-        super();
+        _watcher.init();
     }
     
     /**
@@ -167,12 +164,15 @@ final class SystemCPUWatcher : PlatformSystemCPUWatcher
      *  ErrnoException on Linux if an error occured.
      */
     @safe override double current() {
-        return super.current();
+        return _watcher.current();
     }
+    
+private:
+    PlatformSystemCPUWatcher _watcher;
 }
 
 ///CPU watcher for single process.
-final class ProcessCPUWatcher : PlatformProcessCPUWatcher
+final class ProcessCPUWatcher : CPUWatcher
 {
     /**
      * Watch process by id.
@@ -180,11 +180,11 @@ final class ProcessCPUWatcher : PlatformProcessCPUWatcher
      *  ErrnoException on Linux if an error occured.
      */
     @safe this(int pid) {
-        super(pid);
+        _watcher.init(pid);
     }
     ///ditto, but watch this process.
     @safe this() {
-        super();
+        _watcher.init();
     }
     /**
      * CPU time used by underlying process, in percents.
@@ -192,7 +192,10 @@ final class ProcessCPUWatcher : PlatformProcessCPUWatcher
      *  ErrnoException on Linux if an error occured.
      */
     @safe override double current() {
-        return super.current();
+        return _watcher.current();
     }
+    
+private:
+    PlatformProcessCPUWatcher _watcher;
 }
 
