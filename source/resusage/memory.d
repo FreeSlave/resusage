@@ -147,7 +147,7 @@ version(Windows)
     private @trusted PROCESS_MEMORY_COUNTERS_EX procMemHelper(HANDLE handle)
     {
         if (!isPsApiLoaded()) {
-            throw new WindowsException(GetLastError(), "Psapi.dll is not loaded");
+            throw new WindowsException(psApiError, "Psapi.dll is not loaded");
         }
         PROCESS_MEMORY_COUNTERS_EX pmc;
         wenforce(GetProcessMemoryInfo(handle, cast(PROCESS_MEMORY_COUNTERS*)&pmc, pmc.sizeof), "Could not get process memory info");
