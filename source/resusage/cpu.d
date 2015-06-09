@@ -99,17 +99,21 @@ version(Windows)
     
     private struct PlatformSystemCPUWatcher
     {
-        @trusted init() {
-            PdhOpenQuery(null, 0, &cpuQuery);
-            PdhAddCounter(cpuQuery, "\\Processor(_Total)\\% Processor Time"w.ptr, 0, &cpuTotal);
-            PdhCollectQueryData(cpuQuery);
+        @trusted void initialize() {
+            if (!isPdhLoaded()) {
+                throw new WindowsException(pdhError, "Pdh.dll is not loaded");
+            }
+        
+            wenforce(PdhOpenQuery(null, 0, &cpuQuery) == ERROR_SUCCESS, "Could not query pdh data");
+            wenforce(PdhAddCounter(cpuQuery, "\\Processor(_Total)\\% Processor Time"w.ptr, 0, &cpuTotal) == ERROR_SUCCESS, "Could not add pdh counter");
+            wenforce(PdhCollectQueryData(cpuQuery) == ERROR_SUCCESS, "Could not collect pdh query data");
         }
         
         @trusted double current()
         {
             PDH_FMT_COUNTERVALUE counterVal;
-            PdhCollectQueryData(cpuQuery);
-            PdhGetFormattedCounterValue(cpuTotal, PDH_FMT_DOUBLE, null, &counterVal);
+            wenforce(PdhCollectQueryData(cpuQuery) == ERROR_SUCCESS, "Could not collect pdh query data");
+            wenforce(PdhGetFormattedCounterValue(cpuTotal, PDH_FMT_DOUBLE, null, &counterVal) == ERROR_SUCCESS, "Could not format pdh counter data");
             return counterVal.dummyUnion.doubleValue;
         }
         
@@ -131,13 +135,13 @@ version(Windows)
 
     private struct PlatformProcessCPUWatcher
     {
-        @trusted init(int pid) {
+        @trusted void initialize(int pid) {
             handle = openProcess(pid);
             shouldClose = true;
             timesHelper(handle, lastCPU, lastSysCPU, lastUserCPU);
         }
         
-        @trusted init() {
+        @trusted void initialize() {
             handle = GetCurrentProcess();
             timesHelper(handle, lastCPU, lastSysCPU, lastUserCPU);
         }
@@ -183,7 +187,7 @@ version(Windows)
     
     private struct PlatformSystemCPUWatcher
     {
-        @trusted init() {
+        @trusted void initialize() {
             readProcStat(lastTotalUser, lastTotalUserLow, lastTotalSys, lastTotalIdle);
         }
         
@@ -248,19 +252,19 @@ version(Windows)
 
     private struct PlatformProcessCPUWatcher
     {
-        @trusted init(int pid) {
+        @trusted void initialize(int pid) {
             _proc = procOfPid(pid);
             lastCPU = clock();
             timesHelper(_proc, lastUserCPU, lastSysCPU);
         }
         
-        @trusted init() {
+        @trusted void initialize() {
             _proc = procSelf;
             lastCPU = clock();
             timesHelper(_proc, lastUserCPU, lastSysCPU);
         }
         
-        @safe double current()
+        @trusted double current()
         {
             clock_t nowCPU, nowUserCPU, nowSysCPU;
             double percent;
@@ -300,7 +304,7 @@ final class SystemCPUWatcher : CPUWatcher
      *  ErrnoException on Linux if an error occured.
      */
     @safe this() {
-        _watcher.init();
+        _watcher.initialize();
     }
     
     /**
@@ -325,11 +329,11 @@ final class ProcessCPUWatcher : CPUWatcher
      *  ErrnoException on Linux if an error occured.
      */
     @safe this(int pid) {
-        _watcher.init(pid);
+        _watcher.initialize(pid);
     }
     ///ditto, but watch this process.
     @safe this() {
-        _watcher.init();
+        _watcher.initialize();
     }
     /**
      * CPU time used by underlying process, in percents.
