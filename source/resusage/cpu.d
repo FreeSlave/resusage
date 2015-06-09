@@ -145,7 +145,7 @@ version(linux)
         clock_t lastCPU, lastUserCPU, lastSysCPU;
     }
 }
-
+version(linux) {
 ///System CPU watcher.
 final class SystemCPUWatcher : CPUWatcher
 {
@@ -199,3 +199,4 @@ private:
     PlatformProcessCPUWatcher _watcher;
 }
 
+}

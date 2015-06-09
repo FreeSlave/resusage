@@ -4,6 +4,8 @@
  *  $(LINK2 https://github.com/MyLittleRobo, Roman Chistokhodov).
  * License: 
  *  $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0).
+ * 
+ * Note: Every function may throw on fail ($(B ErrnoException) on Linux, $(B WindowsException) on Windows).
  */
 
 module resusage.memory;
@@ -59,8 +61,153 @@ private {
  */
 @trusted ulong physicalMemoryUsedByProcess();
 
-version(linux)
+version(Windows)
 {
+    private {
+        import core.sys.windows.windows;
+        import std.windows.syserror;
+        
+        alias ulong DWORDLONG;
+        
+        struct MEMORYSTATUSEX {
+            DWORD     dwLength;
+            DWORD     dwMemoryLoad;
+            DWORDLONG ullTotalPhys;
+            DWORDLONG ullAvailPhys;
+            DWORDLONG ullTotalPageFile;
+            DWORDLONG ullAvailPageFile;
+            DWORDLONG ullTotalVirtual;
+            DWORDLONG ullAvailVirtual;
+            DWORDLONG ullAvailExtendedVirtual;
+        };
+        
+        extern(Windows) BOOL GlobalMemoryStatusEx(MEMORYSTATUSEX* lpBuffer) @system nothrow;
+        
+        struct PROCESS_MEMORY_COUNTERS {
+            DWORD  cb;
+            DWORD  PageFaultCount;
+            SIZE_T PeakWorkingSetSize;
+            SIZE_T WorkingSetSize;
+            SIZE_T QuotaPeakPagedPoolUsage;
+            SIZE_T QuotaPagedPoolUsage;
+            SIZE_T QuotaPeakNonPagedPoolUsage;
+            SIZE_T QuotaNonPagedPoolUsage;
+            SIZE_T PagefileUsage;
+            SIZE_T PeakPagefileUsage;
+        };
+        
+        struct PROCESS_MEMORY_COUNTERS_EX {
+            DWORD  cb;
+            DWORD  PageFaultCount;
+            SIZE_T PeakWorkingSetSize;
+            SIZE_T WorkingSetSize;
+            SIZE_T QuotaPeakPagedPoolUsage;
+            SIZE_T QuotaPagedPoolUsage;
+            SIZE_T QuotaPeakNonPagedPoolUsage;
+            SIZE_T QuotaNonPagedPoolUsage;
+            SIZE_T PagefileUsage;
+            SIZE_T PeakPagefileUsage;
+            SIZE_T PrivateUsage;
+        };
+        
+        
+        
+        extern(Windows) @nogc BOOL dummy(in HANDLE Process, PROCESS_MEMORY_COUNTERS* ppsmemCounters, DWORD cb) @system nothrow { return 0; }
+        
+        alias typeof(&dummy) func_GetProcessMemoryInfo;
+        __gshared func_GetProcessMemoryInfo GetProcessMemoryInfo;
+        DWORD psApiError;
+        
+        extern(Windows) HANDLE OpenProcess(DWORD dwDesiredAccess, BOOL  bInheritHandle, DWORD dwProcessId) @system nothrow;
+    }
+    
+    @nogc @trusted bool isPsApiLoaded() {
+        return GetProcessMemoryInfo !is null;
+    }
+    
+    shared static this()
+    {
+        HMODULE shellLib = LoadLibraryA("Psapi");
+        if (shellLib) {
+            GetProcessMemoryInfo = cast(func_GetProcessMemoryInfo)GetProcAddress(shellLib, "GetProcessMemoryInfo");
+            if (GetProcessMemoryInfo is null) {
+                psApiError = GetLastError();
+            }
+        }
+    }
+    
+    private @trusted MEMORYSTATUSEX globalMemInfo()
+    {
+        MEMORYSTATUSEX memInfo;
+        memInfo.dwLength = MEMORYSTATUSEX.sizeof;
+        wenforce(GlobalMemoryStatusEx(&memInfo), "Could not get memory status");
+        return memInfo;
+    }
+    
+    private @trusted PROCESS_MEMORY_COUNTERS_EX procMemHelper(HANDLE handle)
+    {
+        if (!isPsApiLoaded()) {
+            throw new WindowsException(GetLastError(), "Psapi.dll is not loaded");
+        }
+        PROCESS_MEMORY_COUNTERS_EX pmc;
+        wenforce(GetProcessMemoryInfo(handle, cast(PROCESS_MEMORY_COUNTERS*)&pmc, pmc.sizeof), "Could not get process memory info");
+        return pmc;
+    }
+    
+    private @trusted HANDLE openProcess(int pid) {
+        return wenforce(OpenProcess(0x0400, TRUE, pid), "Could not open process");
+    }
+    
+    @trusted ulong totalVirtualMemory() {
+        return globalMemInfo().ullTotalPageFile;
+    }
+    
+    @trusted ulong virtualMemoryUsed()
+    {
+        auto memInfo = globalMemInfo();
+        return memInfo.ullTotalPageFile - memInfo.ullAvailPageFile;
+    }
+    
+    private @trusted ulong virtMemHelper(HANDLE handle) {
+        return procMemHelper(handle).PrivateUsage;
+    }
+    
+    @trusted ulong virtualMemoryUsedByProcess() {
+        return virtMemHelper(GetCurrentProcess());
+    }
+    
+    @trusted ulong virtualMemoryUsedByProcess(int pid)
+    {
+        auto handle = openProcess(pid);
+        scope(exit) CloseHandle(handle);
+        return virtMemHelper(handle);
+    }
+    
+    @trusted ulong totalPhysicalMemory() {
+        return globalMemInfo().ullTotalPhys;
+    }
+    
+    @trusted ulong physicalMemoryUsed()
+    {
+        auto memInfo = globalMemInfo();
+        return memInfo.ullTotalPhys - memInfo.ullAvailPhys;
+    }
+    
+    private @trusted ulong physMemHelper(HANDLE handle) {
+        return procMemHelper(handle).WorkingSetSize;
+    }
+    
+    @trusted ulong physicalMemoryUsedByProcess() {
+        return physMemHelper(GetCurrentProcess());
+    }
+    
+    @trusted ulong physicalMemoryUsedByProcess(int pid)
+    {
+        auto handle = openProcess(pid);
+        scope(exit) CloseHandle(handle);
+        return physMemHelper(handle);
+    }
+} else version(linux) {
     private {
         import core.sys.posix.sys.types;
         import core.sys.posix.unistd;
