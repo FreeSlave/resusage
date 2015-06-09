@@ -4,7 +4,7 @@ Obtaining of virtual memory, RAM and CPU usage by the whole system or by single 
 
 [![Build Status](https://travis-ci.org/MyLittleRobo/resusage.svg?branch=master)](https://travis-ci.org/MyLittleRobo/resusage)
 
-Currently works only on Linux.
+Currently works only on Linux and Windows.
 
 ## Documentation
 

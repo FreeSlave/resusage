@@ -4,6 +4,10 @@
  *  $(LINK2 https://github.com/MyLittleRobo, Roman Chistokhodov).
  * License: 
  *  $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0).
+ * Copyright:
+ *  Roman Chistokhodov 2015
+ *
+ * Note: Every function may throw on fail ($(B ErrnoException) on Linux, $(B WindowsException) on Windows).
  */
 
 module resusage.cpu;
@@ -300,8 +304,6 @@ final class SystemCPUWatcher : CPUWatcher
 {
     /**
      * Watch system.
-     * Throws:
-     *  ErrnoException on Linux if an error occured.
      */
     @safe this() {
         _watcher.initialize();
@@ -309,8 +311,6 @@ final class SystemCPUWatcher : CPUWatcher
     
     /**
      * CPU time used by all processes in the system, in percents.
-     * Throws:
-     *  ErrnoException on Linux if an error occured.
      */
     @safe override double current() {
         return _watcher.current();
@@ -325,8 +325,6 @@ final class ProcessCPUWatcher : CPUWatcher
 {
     /**
      * Watch process by id.
-     * Throws:
-     *  ErrnoException on Linux if an error occured.
      */
     @safe this(int pid) {
         _watcher.initialize(pid);
@@ -337,8 +335,6 @@ final class ProcessCPUWatcher : CPUWatcher
     }
     /**
      * CPU time used by underlying process, in percents.
-     * Throws:
-     *  ErrnoException on Linux if an error occured.
      */
     @safe override double current() {
         return _watcher.current();
