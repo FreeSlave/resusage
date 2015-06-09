@@ -7,8 +7,11 @@
  */
 
 module resusage.cpu;
+import resusage.common;
 
 import std.exception;
+
+private import std.parallelism : totalCPUs;
 
 ///Base interface for cpu watchers
 interface CPUWatcher
@@ -17,17 +20,159 @@ interface CPUWatcher
     @safe double current();
 }
 
-version(linux)
+version(Windows)
 {
-    import core.sys.posix.sys.types;
-    import core.sys.linux.config;
+    private import std.c.string : memcpy;
     
-    import std.c.stdio : FILE, fopen, fclose, fscanf;
-    import std.c.time : clock;
+    private {
+        alias HANDLE PDH_HQUERY;
+        alias HANDLE PDH_HCOUNTER;
+        alias LONG PDH_STATUS;
+        
+        struct PDH_FMT_COUNTERVALUE
+        {
+            DWORD CStatus;
+            static union DUMMYUNIONNAME
+            {
+                LONG     longValue;
+                double   doubleValue;
+                LONGLONG largeValue;
+                LPCSTR   AnsiStringValue;
+                LPCWSTR  WideStringValue;
+            }
+            DUMMYUNIONNAME dummyUnion;
+        };
+        
+        extern(Windows) @nogc PDH_STATUS openQueryDummy(
+            const(wchar)* szDataSource, 
+            DWORD_PTR dwUserData, 
+            PDH_HQUERY *phQuery) @system nothrow { return 0; }
+            
+        extern(Windows) @nogc PDH_STATUS addCounterDummy(
+            PDH_HQUERY Query, 
+            const(wchar)* szFullCounterPath, 
+            DWORD_PTR dwUserData, 
+            PDH_HCOUNTER *phCounter) @system nothrow { return 0; }
+            
+        extern(Windows) @nogc PDH_STATUS queryDataDummy(
+            PDH_HQUERY hQuery) @system nothrow { return 0; }
+        
+        extern(Windows) @nogc PDH_STATUS formattedValueDummy(
+            PDH_HCOUNTER hCounter, 
+            DWORD dwFormat, 
+            LPDWORD lpdwType, 
+            PDH_FMT_COUNTERVALUE* pValue) @system nothrow { return 0; }
+        
+        alias typeof(&openQueryDummy) func_PdhOpenQuery;
+        alias typeof(&addCounterDummy) func_PdhAddCounter;
+        alias typeof(&queryDataDummy) func_PdhCollectQueryData;
+        alias typeof(&formattedValueDummy) func_PdhGetFormattedCounterValue;
+        
+        __gshared func_PdhOpenQuery PdhOpenQuery;
+        __gshared func_PdhAddCounter PdhAddCounter;
+        __gshared func_PdhCollectQueryData PdhCollectQueryData;
+        __gshared func_PdhGetFormattedCounterValue PdhGetFormattedCounterValue;
+        
+        __gshared DWORD pdhError;
+        
+        enum PDH_FMT_DOUBLE = 0x00000200;
+    }
     
-    import std.conv : to;
-    import std.string : toStringz;
-    import std.parallelism : totalCPUs;
+    shared static this()
+    {
+        HMODULE pdhLib = LoadLibraryA("Pdh");
+        if (pdhLib) {
+            PdhOpenQuery =                  cast(func_PdhOpenQuery)                 GetProcAddress(pdhLib, "PdhOpenQueryW");
+            PdhAddCounter =                 cast(func_PdhAddCounter)                GetProcAddress(pdhLib, "PdhAddCounterW");
+            PdhCollectQueryData =           cast(func_PdhCollectQueryData)          GetProcAddress(pdhLib, "PdhCollectQueryData");
+            PdhGetFormattedCounterValue =   cast(func_PdhGetFormattedCounterValue)  GetProcAddress(pdhLib, "PdhGetFormattedCounterValue");
+        }
+        
+        if (!isPdhLoaded()) {
+            pdhError = GetLastError();
+        }
+    }
+    
+    @nogc @trusted bool isPdhLoaded() {
+        return PdhOpenQuery && PdhAddCounter && PdhCollectQueryData && PdhGetFormattedCounterValue;
+    }
+    
+    private struct PlatformSystemCPUWatcher
+    {
+        @trusted init() {
+            PdhOpenQuery(null, 0, &cpuQuery);
+            PdhAddCounter(cpuQuery, "\\Processor(_Total)\\% Processor Time"w.ptr, 0, &cpuTotal);
+            PdhCollectQueryData(cpuQuery);
+        }
+        
+        @trusted double current()
+        {
+            PDH_FMT_COUNTERVALUE counterVal;
+            PdhCollectQueryData(cpuQuery);
+            PdhGetFormattedCounterValue(cpuTotal, PDH_FMT_DOUBLE, null, &counterVal);
+            return counterVal.dummyUnion.doubleValue;
+        }
+        
+    private:
+        PDH_HQUERY cpuQuery;
+        PDH_HCOUNTER cpuTotal;
+    }
+
+    @trusted void timesHelper(HANDLE handle, ref ULARGE_INTEGER now, ref ULARGE_INTEGER sys, ref ULARGE_INTEGER user)
+    {
+        FILETIME ftime, fsys, fuser;
+        GetSystemTimeAsFileTime(&ftime);
+        memcpy(&now, &ftime, FILETIME.sizeof);
+        
+        GetProcessTimes(handle, &ftime, &ftime, &fsys, &fuser);
+        memcpy(&sys, &fsys, FILETIME.sizeof);
+        memcpy(&user, &fuser, FILETIME.sizeof);
+    }
+
+    private struct PlatformProcessCPUWatcher
+    {
+        @trusted init(int pid) {
+            handle = openProcess(pid);
+            shouldClose = true;
+            timesHelper(handle, lastCPU, lastSysCPU, lastUserCPU);
+        }
+        
+        @trusted init() {
+            handle = GetCurrentProcess();
+            timesHelper(handle, lastCPU, lastSysCPU, lastUserCPU);
+        }
+        
+        @trusted double current()
+        {
+            ULARGE_INTEGER now, sys, user;
+            timesHelper(handle, now, sys, user);
+            
+            double percent = (sys.QuadPart - lastSysCPU.QuadPart) + (user.QuadPart - lastUserCPU.QuadPart);
+            percent /= (now.QuadPart - lastCPU.QuadPart);
+            percent /= totalCPUs;
+            
+            lastCPU = now;
+            lastUserCPU = user;
+            lastSysCPU = sys;
+            
+            return percent * 100;
+        }
+        
+        ~this() {
+            if (shouldClose) {
+                CloseHandle(handle);
+            }
+        }
+        
+    private:
+        HANDLE handle;
+        double lastPercent;
+        bool shouldClose;
+        ULARGE_INTEGER lastCPU, lastUserCPU, lastSysCPU;
+    }
+} else version(linux) {
+
+    private import std.c.time : clock;
     
     private @trusted void readProcStat(ref ulong totalUser, ref ulong totalUserLow, ref ulong totalSys, ref ulong totalIdle)
     {
@@ -42,7 +187,7 @@ version(linux)
             readProcStat(lastTotalUser, lastTotalUserLow, lastTotalSys, lastTotalIdle);
         }
         
-        @safe double current()
+        @trusted double current()
         {
             ulong totalUser, totalUserLow, totalSys, totalIdle;
             readProcStat(totalUser, totalUserLow, totalSys, totalIdle);
@@ -104,13 +249,13 @@ version(linux)
     private struct PlatformProcessCPUWatcher
     {
         @trusted init(int pid) {
-            _proc = toStringz("/proc/" ~ to!string(pid) ~ "/stat");
+            _proc = procOfPid(pid);
             lastCPU = clock();
             timesHelper(_proc, lastUserCPU, lastSysCPU);
         }
         
         @trusted init() {
-            _proc = "/proc/self/stat".ptr;
+            _proc = procSelf;
             lastCPU = clock();
             timesHelper(_proc, lastUserCPU, lastSysCPU);
         }
@@ -145,7 +290,7 @@ version(linux)
         clock_t lastCPU, lastUserCPU, lastSysCPU;
     }
 }
-version(linux) {
+
 ///System CPU watcher.
 final class SystemCPUWatcher : CPUWatcher
 {
@@ -197,6 +342,4 @@ final class ProcessCPUWatcher : CPUWatcher
     
 private:
     PlatformProcessCPUWatcher _watcher;
-}
-
 }

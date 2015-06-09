@@ -9,6 +9,7 @@
  */
 
 module resusage.memory;
+import resusage.common;
 
 import std.exception;
 
@@ -64,9 +65,6 @@ private {
 version(Windows)
 {
     private {
-        import core.sys.windows.windows;
-        import std.windows.syserror;
-        
         alias ulong DWORDLONG;
         
         struct MEMORYSTATUSEX {
@@ -110,15 +108,11 @@ version(Windows)
             SIZE_T PrivateUsage;
         };
         
-        
-        
         extern(Windows) @nogc BOOL dummy(in HANDLE Process, PROCESS_MEMORY_COUNTERS* ppsmemCounters, DWORD cb) @system nothrow { return 0; }
         
         alias typeof(&dummy) func_GetProcessMemoryInfo;
         __gshared func_GetProcessMemoryInfo GetProcessMemoryInfo;
-        DWORD psApiError;
-        
-        extern(Windows) HANDLE OpenProcess(DWORD dwDesiredAccess, BOOL  bInheritHandle, DWORD dwProcessId) @system nothrow;
+        __gshared DWORD psApiError;
     }
     
     @nogc @trusted bool isPsApiLoaded() {
@@ -127,12 +121,13 @@ version(Windows)
     
     shared static this()
     {
-        HMODULE shellLib = LoadLibraryA("Psapi");
-        if (shellLib) {
-            GetProcessMemoryInfo = cast(func_GetProcessMemoryInfo)GetProcAddress(shellLib, "GetProcessMemoryInfo");
-            if (GetProcessMemoryInfo is null) {
-                psApiError = GetLastError();
-            }
+        HMODULE psApiLib = LoadLibraryA("Psapi");
+        if (psApiLib) {
+            GetProcessMemoryInfo = cast(func_GetProcessMemoryInfo)GetProcAddress(psApiLib, "GetProcessMemoryInfo");
+        }
+        
+        if (GetProcessMemoryInfo is null) {
+            psApiError = GetLastError();
         }
     }
     
@@ -152,10 +147,6 @@ version(Windows)
         PROCESS_MEMORY_COUNTERS_EX pmc;
         wenforce(GetProcessMemoryInfo(handle, cast(PROCESS_MEMORY_COUNTERS*)&pmc, pmc.sizeof), "Could not get process memory info");
         return pmc;
-    }
-    
-    private @trusted HANDLE openProcess(int pid) {
-        return wenforce(OpenProcess(0x0400, TRUE, pid), "Could not open process");
     }
     
     @trusted ulong totalVirtualMemory() {
@@ -209,9 +200,6 @@ version(Windows)
     }
 } else version(linux) {
     private {
-        import core.sys.posix.sys.types;
-        import core.sys.posix.unistd;
-        
         static if (is(typeof({ import core.sys.linux.sys.sysinfo; }))) {
             import core.sys.linux.sys.sysinfo;
         } else {
@@ -236,12 +224,6 @@ version(Windows)
             }
             int sysinfo(sysinfo_ *info);
         }
-        
-        import core.sys.linux.config;
-        
-        import std.c.stdio : FILE, fopen, fclose, fscanf;
-        import std.conv : to;
-        import std.string : toStringz;
     }
     
     private @trusted void memoryUsedHelper(const(char)* proc, ref c_ulong vsize, ref c_long rss)
@@ -306,7 +288,7 @@ version(Windows)
     {
         c_ulong vsize;
         c_long rss;
-        memoryUsedHelper("/proc/self/stat", vsize, rss);
+        memoryUsedHelper(procSelf, vsize, rss);
         return vsize;
     }
     
@@ -315,7 +297,7 @@ version(Windows)
         c_ulong vsize;
         c_long rss;
         
-        memoryUsedHelper(toStringz("/proc/" ~ to!string(pid) ~ "/stat"), vsize, rss);
+        memoryUsedHelper(procOfPid(pid), vsize, rss);
         return vsize;
     }
     
@@ -343,7 +325,7 @@ version(Windows)
     {
         c_ulong vsize;
         c_long rss;
-        memoryUsedHelper("/proc/self/stat", vsize, rss);
+        memoryUsedHelper(procSelf, vsize, rss);
         return rss;
     }
     
@@ -352,7 +334,7 @@ version(Windows)
         c_ulong vsize;
         c_long rss;
         
-        memoryUsedHelper(toStringz("/proc/" ~ to!string(pid) ~ "/stat"), vsize, rss);
+        memoryUsedHelper(procOfPid(pid), vsize, rss);
         return rss;
     }
 }
