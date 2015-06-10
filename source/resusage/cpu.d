@@ -89,12 +89,24 @@ version(Windows)
     
     shared static this()
     {
+        debug import std.stdio : writeln;
+    
         HMODULE pdhLib = LoadLibraryA("Pdh");
         if (pdhLib) {
-            PdhOpenQuery =                  cast(func_PdhOpenQuery)                 GetProcAddress(pdhLib, "PdhOpenQueryW");
-            PdhAddCounter =                 cast(func_PdhAddCounter)                GetProcAddress(pdhLib, "PdhAddCounterW");
-            PdhCollectQueryData =           cast(func_PdhCollectQueryData)          GetProcAddress(pdhLib, "PdhCollectQueryData");
-            PdhGetFormattedCounterValue =   cast(func_PdhGetFormattedCounterValue)  GetProcAddress(pdhLib, "PdhGetFormattedCounterValue");
+            PdhOpenQuery = cast(func_PdhOpenQuery) GetProcAddress(pdhLib, "PdhOpenQueryW");
+            PdhAddCounter = cast(func_PdhAddCounter) GetProcAddress(pdhLib, "PdhAddEnglishCounterW");
+            
+            /*
+            PdhAddEnglishCounterW is defined only since Windows Vista or Windows Server 2008. 
+            Load locale-dependent PdhAddCounter on older Windows versions and hope that user has english locale.
+            */
+            if (PdhAddCounter is null) {
+                PdhAddCounter = cast(func_PdhAddCounter) GetProcAddress(pdhLib, "PdhAddCounterW");
+                debug writeln("Warning: resusage will use PdhAddCounter, because could not find PdhAddEnglishCounter");
+            }
+            
+            PdhCollectQueryData = cast(func_PdhCollectQueryData) GetProcAddress(pdhLib, "PdhCollectQueryData");
+            PdhGetFormattedCounterValue = cast(func_PdhGetFormattedCounterValue) GetProcAddress(pdhLib, "PdhGetFormattedCounterValue");
         }
         
         if (!isPdhLoaded()) {

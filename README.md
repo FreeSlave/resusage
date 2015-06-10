@@ -4,7 +4,7 @@ Obtaining of virtual memory, RAM and CPU usage by the whole system or by single 
 
 [![Build Status](https://travis-ci.org/MyLittleRobo/resusage.svg?branch=master)](https://travis-ci.org/MyLittleRobo/resusage)
 
-Currently works only on Linux and Windows.
+Currently works on Linux and Windows.
 
 ## Documentation
 
@@ -39,3 +39,21 @@ Watch system CPU time:
 Watch process CPU time:
 
     dub run resusage:cpuwatcher -- `pidof process`
+
+## Platform notes and implementation details
+
+### Windows
+
+In order to provide some functionality **resusage** dynamically loads the following libraries at startup:
+ 
+1. Psapi.dll to get memory (physical and virtual) used by specific process.
+2. Pdh.dll to calculate CPU time used by system.
+
+If specific library could be loaded, corresponding functions will always throw *WindowsException*.
+
+### Linux
+
+Value returned by *physicalMemoryUsed* can be bigger than RAM actually used by all system's processes. 
+It's because Linux uses free memory for file cache to increase file access speed.
+This memory is still free for programs though, because the kernel will reallocate it when needed.
+To get memory used by processes, better consider using *virtualMemoryUsed*.
