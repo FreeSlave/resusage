@@ -17,7 +17,6 @@ import std.exception;
 
 private {
     import std.parallelism : totalCPUs;
-    import std.process : thisProcessID;
 }
 
 ///Base interface for cpu watchers
@@ -83,8 +82,6 @@ version(Windows)
         __gshared DWORD pdhError;
         
         enum PDH_FMT_DOUBLE = 0x00000200;
-        
-        extern(Windows) @nogc DWORD GetProcessId(in HANDLE Process) @system nothrow;
     }
     
     shared static this()

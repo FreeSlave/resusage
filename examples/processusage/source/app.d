@@ -5,13 +5,16 @@ import resusage.memory;
 void main(string[] args)
 {
     if (args.length < 2) {
-        writeln("Virtual memory used by this process: ", virtualMemoryUsedByProcess());
-        writeln("Physical memory used by this process: ", physicalMemoryUsedByProcess());
+        auto memInfo = processMemInfo();
+    
+        writeln("Virtual memory used by this process: ", memInfo.usedVirtMem);
+        writeln("Physical memory used by this process: ", memInfo.usedRAM);
     } else {
         string pidStr = args[1];
-
         auto pid = to!int(pidStr);
-        writeln("Virtual memory used by process: ", virtualMemoryUsedByProcess(pid));
-        writeln("Physical memory used by process: ", physicalMemoryUsedByProcess(pid));
+        auto memInfo = processMemInfo(pid);
+        
+        writeln("Virtual memory used by process: ", memInfo.usedVirtMem);
+        writeln("Physical memory used by process: ", memInfo.usedRAM);
     }
 }

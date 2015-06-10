@@ -3,14 +3,10 @@ import resusage.memory;
 
 void main()
 {
-    auto totalVirtMem = totalVirtualMemory();
-    auto virtMemUsed = virtualMemoryUsed();
+    auto memInfo = systemMemInfo();
     
-    auto totalPhysMem = totalPhysicalMemory();
-    auto physMemUsed = physicalMemoryUsed();
-    
-    writefln("Total virtual memory: %s bytes", totalVirtMem);
-    writefln("Virtual memory currently in use: %s bytes (%s %%)", virtMemUsed, virtMemUsed/cast(double)totalVirtMem * 100);
-    writefln("Total physical memory: %s bytes", totalPhysMem);
-    writefln("Physical memory currently in use: %s bytes (%s %%)", physMemUsed, physMemUsed/cast(double)totalPhysMem * 100);
+    writefln("Total virtual memory: %s bytes", memInfo.totalVirtMem);
+    writefln("Virtual memory currently in use: %s bytes (%s %%)", memInfo.usedVirtMem, memInfo.usedVirtMemPercent);
+    writefln("Total physical memory (RAM): %s bytes", memInfo.totalRAM);
+    writefln("Physical memory (RAM) currently in use: %s bytes (%s %%)", memInfo.usedRAM, memInfo.usedRAMPercent);
 }

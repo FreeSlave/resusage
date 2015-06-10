@@ -10,9 +10,15 @@
 module resusage.common;
 
 package:
+static if( __VERSION__ < 2066 ) enum nogc = 1;
+
+import std.process : thisProcessID;
+
 version(Windows) {
     import core.sys.windows.windows;
     import std.windows.syserror;
+    
+    extern(Windows) @nogc DWORD GetProcessId(in HANDLE Process) @system nothrow;
 
     extern(Windows) @nogc HANDLE OpenProcess(DWORD dwDesiredAccess, BOOL  bInheritHandle, DWORD dwProcessId) @system nothrow;
     private enum PROCESS_QUERY_INFORMATION = 0x0400;

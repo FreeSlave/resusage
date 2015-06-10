@@ -15,57 +15,105 @@ import resusage.common;
 
 import std.exception;
 
-private {
-    static if( __VERSION__ < 2066 ) enum nogc = 1;
+///Get system memory information.
+@trusted SystemMemInfo systemMemInfo()
+{
+    SystemMemInfo memInfo;
+    memInfo.update();
+    return memInfo;
+}
+
+///Get memory info for current process.
+@trusted ProcessMemInfo processMemInfo() {
+    ProcessMemInfo memInfo;
+    memInfo.initialize();
+    memInfo.update();
+    return memInfo;
 }
 
 /**
- * Total virtual memory in the system, in bytes.
- */
-@trusted ulong totalVirtualMemory();
-
-/**
- * Amout of virtual memory currently used, in bytes.
- */
-@trusted ulong virtualMemoryUsed();
-
-
-/**
- * Amount of virtual memory currently used by single process, in bytes.
+ * Get memory info for specific process.
  * Params:
- *  pid = Process id
+ *  pid = Process ID of specific process. On Windows also can be process handle.
  */
-@trusted ulong virtualMemoryUsedByProcess(int pid);
+@trusted ProcessMemInfo processMemInfo(int pid) {
+    ProcessMemInfo memInfo;
+    memInfo.initialize(pid);
+    memInfo.update();
+    return memInfo;
+}
 
-/**
- * ditto, but returns info for this process.
- */
-@trusted ulong virtualMemoryUsedByProcess();
+private @nogc @safe double percent(ulong total, ulong part) pure nothrow {
+    return part / cast(double)total * 100.0;
+}
 
-/**
- * Total physycal memory (RAM) in the system, in bytes.
- */
-@trusted ulong totalPhysicalMemory();
-
-/**
- * Amout of physycal memory (RAM) currently used, in bytes.
- */
-@trusted ulong physicalMemoryUsed();
-
-/**
- * Amount of physycal memory (RAM) currently used by single process, in bytes.
- * Params:
- *  pid = Process id
- */
-@trusted ulong physicalMemoryUsedByProcess(int pid);
-
-/**
- * ditto, but returns info for this process.
- */
-@trusted ulong physicalMemoryUsedByProcess();
-
-version(Windows)
+version(Docs)
 {
+    ///System-wide memory information.
+    struct SystemMemInfo
+    {
+        ///Total physycal memory in the system, in bytes.
+        @nogc @safe ulong totalRAM() const nothrow;
+        
+        ///Amout of physycal memory currently available (free), in bytes.
+        @nogc @safe ulong freeRAM() const nothrow;
+        
+        ///Amout of physycal memory currently available (free), in percents of total physycal memory.
+        @nogc @safe double freeRAMPercent() const nothrow;
+        
+        ///Amout of physycal memory currently in use, in bytes.
+        @nogc @safe ulong usedRAM() const nothrow;
+        
+        ///Amout of physycal memory currently in use, in percents of total physycal memory.
+        @nogc @safe double usedRAMPercent() const nothrow;
+        
+        ///Total virtual memory in the system, in bytes.
+        @nogc @safe ulong totalVirtMem() const nothrow;
+        
+        ///Amout of virtual memory currently available (free), in bytes.
+        @nogc @safe ulong freeVirtMem() const nothrow;
+        
+        ///Amout of virtual memory currently available (free), in percents of total virtual memory.
+        @nogc @safe double freeVirtMemPercent() const nothrow;
+        
+        ///Amout of virtual memory currently in use, in bytes.
+        @nogc @safe ulong usedVirtMem() const nothrow;
+        
+        ///Amout of virtual memory currently in use, in percents of total virtual memory.
+        @nogc @safe double usedVirtMemPercent() const nothrow;
+        
+        ///Actualize values.
+        @trusted void update();
+    }
+    
+    ///Single process memory information.
+    struct ProcessMemInfo
+    {
+        ///Amount of physycal memory (RAM) currently used by single process, in bytes.
+        @nogc @safe ulong usedRAM() const nothrow;
+        
+        ///Amount of virtual memory currently used by single process, in bytes.
+        @nogc @safe ulong usedVirtMem() const nothrow;
+        
+        ///Actualize values.
+        @trusted void update();
+        
+        ///ID of underlying process.
+        @nogc @safe int processID() const nothrow;
+        
+    private:
+        void initialize();
+        void initialize(int pid);
+    }
+} else version(Windows) {
+
+    @trusted ProcessMemInfo processMemInfo(HANDLE procHandle) {
+        ProcessMemInfo memInfo;
+        memInfo.initialize(procHandle);
+        memInfo.update();
+        return memInfo;
+    }
+
     private {
         alias ulong DWORDLONG;
         
@@ -133,73 +181,89 @@ version(Windows)
         }
     }
     
-    private @trusted MEMORYSTATUSEX globalMemInfo()
+    struct SystemMemInfo
     {
-        MEMORYSTATUSEX memInfo;
-        memInfo.dwLength = MEMORYSTATUSEX.sizeof;
-        wenforce(GlobalMemoryStatusEx(&memInfo), "Could not get memory status");
-        return memInfo;
-    }
-    
-    private @trusted PROCESS_MEMORY_COUNTERS_EX procMemHelper(HANDLE handle)
-    {
-        if (!isPsApiLoaded()) {
-            throw new WindowsException(psApiError, "Psapi.dll is not loaded");
+        @nogc @safe ulong totalRAM() const nothrow {
+            return memInfo.ullTotalPhys;
         }
+        @nogc @safe ulong freeRAM() const nothrow {
+            return memInfo.ullAvailPhys;
+        }
+        @nogc @safe double freeRAMPercent() const nothrow {
+            return percent(totalRAM, freeRAM);
+        }
+        @nogc @safe ulong usedRAM() const nothrow {
+            return memInfo.ullTotalPhys - memInfo.ullAvailPhys;
+        }
+        @nogc @safe double usedRAMPercent() const nothrow {
+            return percent(totalRAM, usedRAM);
+        }
+        
+        @nogc @safe ulong totalVirtMem() const nothrow {
+            return memInfo.ullTotalPageFile;
+        }
+        @nogc @safe ulong freeVirtMem() const nothrow {
+            return memInfo.ullAvailPageFile;
+        }
+        @nogc @safe double freeVirtMemPercent() const nothrow {
+            return percent(totalVirtMem, freeVirtMem);
+        }
+        @nogc @safe ulong usedVirtMem() const nothrow {
+            return memInfo.ullTotalPageFile - memInfo.ullAvailPageFile;
+        }
+        @nogc @safe double usedVirtMemPercent() const nothrow {
+            return percent(totalVirtMem, usedVirtMem);
+        }
+        
+        @trusted void update() {
+            memInfo.dwLength = MEMORYSTATUSEX.sizeof;
+            wenforce(GlobalMemoryStatusEx(&memInfo), "Could not get memory status");
+        }
+    private:
+        MEMORYSTATUSEX memInfo;
+    }
+    
+    struct ProcessMemInfo
+    {
+        @nogc @safe ulong usedRAM() const nothrow {
+            return pmc.WorkingSetSize;
+        }
+        @nogc @safe ulong usedVirtMem() const nothrow {
+            return pmc.PrivateUsage;
+        }
+        
+        @trusted void update() {
+            if (!isPsApiLoaded()) {
+                throw new WindowsException(psApiError, "Psapi.dll is not loaded");
+            }
+        
+            HANDLE handle = openProcess(pid);
+            scope(exit) CloseHandle(handle);
+            
+            wenforce(GetProcessMemoryInfo(handle, cast(PROCESS_MEMORY_COUNTERS*)&pmc, pmc.sizeof), "Could not get process memory info");
+        }
+        
+        @nogc @safe int processID() const nothrow {
+            return pid;
+        }
+        
+    private:
+        void initialize() {
+            pid = thisProcessID;
+        }
+    
+        void initialize(int procId) {
+            pid = procId;
+        }
+        
+        void initialize(HANDLE procHandle) {
+            pid = GetProcessId(procHandle);
+        }
+    
+        int pid;
         PROCESS_MEMORY_COUNTERS_EX pmc;
-        wenforce(GetProcessMemoryInfo(handle, cast(PROCESS_MEMORY_COUNTERS*)&pmc, pmc.sizeof), "Could not get process memory info");
-        return pmc;
     }
     
-    @trusted ulong totalVirtualMemory() {
-        return globalMemInfo().ullTotalPageFile;
-    }
-    
-    @trusted ulong virtualMemoryUsed()
-    {
-        auto memInfo = globalMemInfo();
-        return memInfo.ullTotalPageFile - memInfo.ullAvailPageFile;
-    }
-    
-    private @trusted ulong virtMemHelper(HANDLE handle) {
-        return procMemHelper(handle).PrivateUsage;
-    }
-    
-    @trusted ulong virtualMemoryUsedByProcess() {
-        return virtMemHelper(GetCurrentProcess());
-    }
-    
-    @trusted ulong virtualMemoryUsedByProcess(int pid)
-    {
-        auto handle = openProcess(pid);
-        scope(exit) CloseHandle(handle);
-        return virtMemHelper(handle);
-    }
-    
-    @trusted ulong totalPhysicalMemory() {
-        return globalMemInfo().ullTotalPhys;
-    }
-    
-    @trusted ulong physicalMemoryUsed()
-    {
-        auto memInfo = globalMemInfo();
-        return memInfo.ullTotalPhys - memInfo.ullAvailPhys;
-    }
-    
-    private @trusted ulong physMemHelper(HANDLE handle) {
-        return procMemHelper(handle).WorkingSetSize;
-    }
-    
-    @trusted ulong physicalMemoryUsedByProcess() {
-        return physMemHelper(GetCurrentProcess());
-    }
-    
-    @trusted ulong physicalMemoryUsedByProcess(int pid)
-    {
-        auto handle = openProcess(pid);
-        scope(exit) CloseHandle(handle);
-        return physMemHelper(handle);
-    }
 } else version(linux) {
     private {
         static if (is(typeof({ import core.sys.linux.sys.sysinfo; }))) {
