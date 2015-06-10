@@ -14,10 +14,10 @@ version(Windows) {
     import core.sys.windows.windows;
     import std.windows.syserror;
 
-    extern(Windows) HANDLE OpenProcess(DWORD dwDesiredAccess, BOOL  bInheritHandle, DWORD dwProcessId) @system nothrow;
-
+    extern(Windows) @nogc HANDLE OpenProcess(DWORD dwDesiredAccess, BOOL  bInheritHandle, DWORD dwProcessId) @system nothrow;
+    private enum PROCESS_QUERY_INFORMATION = 0x0400;
     @trusted HANDLE openProcess(int pid) {
-        return wenforce(OpenProcess(0x0400, TRUE, pid), "Could not open process");
+        return wenforce(OpenProcess(PROCESS_QUERY_INFORMATION, TRUE, pid), "Could not open process");
     }
 } else version(linux) {
 

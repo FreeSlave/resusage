@@ -15,7 +15,10 @@ import resusage.common;
 
 import std.exception;
 
-private import std.parallelism : totalCPUs;
+private {
+    import std.parallelism : totalCPUs;
+    import std.process : thisProcessID;
+}
 
 ///Base interface for cpu watchers
 interface CPUWatcher
@@ -80,6 +83,8 @@ version(Windows)
         __gshared DWORD pdhError;
         
         enum PDH_FMT_DOUBLE = 0x00000200;
+        
+        extern(Windows) @nogc DWORD GetProcessId(in HANDLE Process) @system nothrow;
     }
     
     shared static this()
@@ -97,7 +102,7 @@ version(Windows)
         }
     }
     
-    @nogc @trusted bool isPdhLoaded() {
+    private @nogc @trusted bool isPdhLoaded() {
         return PdhOpenQuery && PdhAddCounter && PdhCollectQueryData && PdhGetFormattedCounterValue;
     }
     
@@ -126,7 +131,7 @@ version(Windows)
         PDH_HCOUNTER cpuTotal;
     }
 
-    @trusted void timesHelper(HANDLE handle, ref ULARGE_INTEGER now, ref ULARGE_INTEGER sys, ref ULARGE_INTEGER user)
+    private @trusted void timesHelper(HANDLE handle, ref ULARGE_INTEGER now, ref ULARGE_INTEGER sys, ref ULARGE_INTEGER user)
     {
         FILETIME ftime, fsys, fuser;
         GetSystemTimeAsFileTime(&ftime);
@@ -141,12 +146,20 @@ version(Windows)
     {
         @trusted void initialize(int pid) {
             handle = openProcess(pid);
+            _pid = pid;
             shouldClose = true;
+            timesHelper(handle, lastCPU, lastSysCPU, lastUserCPU);
+        }
+        
+        @trusted void initialize(HANDLE procHandle) {
+            handle = procHandle;
+            _pid = GetProcessId(procHandle);
             timesHelper(handle, lastCPU, lastSysCPU, lastUserCPU);
         }
         
         @trusted void initialize() {
             handle = GetCurrentProcess();
+            _pid = thisProcessID();
             timesHelper(handle, lastCPU, lastSysCPU, lastUserCPU);
         }
         
@@ -172,8 +185,17 @@ version(Windows)
             }
         }
         
+        @trusted inout(HANDLE) osHandle() inout nothrow {
+            return handle;
+        }
+        
+        @trusted int processID() const nothrow {
+            return _pid;
+        }
+        
     private:
         HANDLE handle;
+        int _pid;
         double lastPercent;
         bool shouldClose;
         ULARGE_INTEGER lastCPU, lastUserCPU, lastSysCPU;
@@ -258,12 +280,14 @@ version(Windows)
     {
         @trusted void initialize(int pid) {
             _proc = procOfPid(pid);
+            _pid = pid;
             lastCPU = clock();
             timesHelper(_proc, lastUserCPU, lastSysCPU);
         }
         
         @trusted void initialize() {
             _proc = procSelf;
+            _pid = thisProcessID();
             lastCPU = clock();
             timesHelper(_proc, lastUserCPU, lastSysCPU);
         }
@@ -292,7 +316,16 @@ version(Windows)
             return percent;
         }
         
+        @trusted int processID() const nothrow {
+            return _pid;
+        }
+        
+        @trusted auto osHandle() const nothrow {
+            return _pid;
+        }
+        
     private:
+        int _pid;
         double lastPercent;
         const(char)* _proc;
         clock_t lastCPU, lastUserCPU, lastSysCPU;
@@ -325,10 +358,19 @@ final class ProcessCPUWatcher : CPUWatcher
 {
     /**
      * Watch process by id.
+     * Params:
+     * pid = ID number of process. Can be process handle on Windows.
      */
     @safe this(int pid) {
         _watcher.initialize(pid);
     }
+    
+    version(Windows) {
+        @safe this(HANDLE procHandle) {
+            _watcher.initialize(procHandle);
+        }
+    }
+    
     ///ditto, but watch this process.
     @safe this() {
         _watcher.initialize();
@@ -338,6 +380,16 @@ final class ProcessCPUWatcher : CPUWatcher
      */
     @safe override double current() {
         return _watcher.current();
+    }
+    
+    ///The process ID number.
+    @safe int processID() const nothrow {
+        return _watcher.processID();
+    }
+    
+    ///An operating system handle to the process.
+    @safe auto osHandle() nothrow {
+        return _watcher.osHandle();
     }
     
 private:
