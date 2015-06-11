@@ -44,7 +44,10 @@ import std.exception;
 }
 
 private @nogc @safe double percent(ulong total, ulong part) pure nothrow {
-    return part / cast(double)total * 100.0;
+    if (total) {
+        return part / cast(double)total * 100.0;
+    }
+    return 0.0;
 }
 
 version(Docs)
@@ -295,9 +298,9 @@ version(Docs)
     private @trusted void memoryUsedHelper(const(char)* proc, ref c_ulong vsize, ref c_long rss)
     {
         FILE* f = errnoEnforce(fopen(proc, "r"));
-        pid_t pid;
+        scope(exit) fclose(f);
         errnoEnforce(fscanf(f, 
-                     "%d " //pid
+                     "%*d " //pid
                      "%*s " //comm
                      "%*c " //state
                      "%*d " //ppid
@@ -321,86 +324,91 @@ version(Docs)
                      "%*llu " //starttime
                      "%lu " //vsize
                      "%ld ", //rss
-               &pid, &vsize, &rss
-              ));
+               &vsize, &rss
+              ) == 2);
         rss *= sysconf(_SC_PAGESIZE);
-        fclose(f);
     }
     
-    
-    @trusted ulong totalVirtualMemory()
+    struct SystemMemInfo
     {
-        sysinfo_ memInfo;
-        errnoEnforce(sysinfo(&memInfo) == 0);
+        @nogc @safe ulong totalRAM() const nothrow {
+            ulong total = memInfo.totalram;
+            total *= memInfo.mem_unit;
+            return total;
+        }
+        @nogc @safe ulong freeRAM() const nothrow {
+            ulong free = memInfo.freeram;
+            free *= memInfo.mem_unit;
+            return free;
+        }
+        @nogc @safe double freeRAMPercent() const nothrow {
+            return percent(totalRAM, freeRAM);
+        }
+        @nogc @safe ulong usedRAM() const nothrow {
+            return totalRAM() - freeRAM();
+        }
+        @nogc @safe double usedRAMPercent() const nothrow {
+            return percent(totalRAM, usedRAM);
+        }
         
-        ulong totalMem = memInfo.totalram;
-        totalMem += memInfo.totalswap;
-        totalMem *= memInfo.mem_unit;
-        return totalMem;
-    }
-    
-    @trusted ulong virtualMemoryUsed()
-    {
-        sysinfo_ memInfo;
-        errnoEnforce(sysinfo(&memInfo) == 0);
+        @nogc @safe ulong totalVirtMem() const nothrow {
+            ulong total = memInfo.totalram + memInfo.totalswap;
+            total *= memInfo.mem_unit;
+            return total;
+        }
+        @nogc @safe ulong freeVirtMem() const nothrow {
+            ulong free = memInfo.freeram + memInfo.freeswap;
+            free *= memInfo.mem_unit;
+            return free;
+        }
+        @nogc @safe double freeVirtMemPercent() const nothrow {
+            return percent(totalVirtMem, freeVirtMem);
+        }
+        @nogc @safe ulong usedVirtMem() const nothrow {
+            return totalVirtMem() - freeVirtMem();
+        }
+        @nogc @safe double usedVirtMemPercent() const nothrow {
+            return percent(totalVirtMem, usedVirtMem);
+        }
         
-        ulong memUsed = memInfo.totalram - memInfo.freeram;
-        memUsed += memInfo.totalswap - memInfo.freeswap;
-        memUsed *= memInfo.mem_unit;
-        return memUsed;
+        @trusted void update() {
+            errnoEnforce(sysinfo(&memInfo) == 0);
+        }
+    private:
+        sysinfo_ memInfo;
     }
     
-    @trusted ulong virtualMemoryUsedByProcess()
+    struct ProcessMemInfo
     {
+        @nogc @safe ulong usedRAM() const nothrow {
+            return rss;
+        }
+        @nogc @safe ulong usedVirtMem() const nothrow {
+            return vsize;
+        }
+        
+        @trusted void update() {
+            memoryUsedHelper(proc, vsize, rss);
+        }
+        
+        @nogc @safe int processID() const nothrow {
+            return pid;
+        }
+        
+    private:
+        void initialize() {
+            pid = thisProcessID;
+            proc = procSelf;
+        }
+    
+        void initialize(int procId) {
+            pid = procId;
+            proc = procOfPid(pid);
+        }
+    
+        int pid;
+        const(char)* proc;
         c_ulong vsize;
         c_long rss;
-        memoryUsedHelper(procSelf, vsize, rss);
-        return vsize;
-    }
-    
-    @trusted ulong virtualMemoryUsedByProcess(int pid)
-    {
-        c_ulong vsize;
-        c_long rss;
-        
-        memoryUsedHelper(procOfPid(pid), vsize, rss);
-        return vsize;
-    }
-    
-    @trusted ulong totalPhysicalMemory()
-    {
-        sysinfo_ memInfo;
-        errnoEnforce(sysinfo(&memInfo) == 0);
-        
-        ulong totalMem = memInfo.totalram;
-        totalMem *= memInfo.mem_unit;
-        return totalMem;
-    }
-    
-    @trusted ulong physicalMemoryUsed()
-    {
-        sysinfo_ memInfo;
-        errnoEnforce(sysinfo(&memInfo) == 0);
-        
-        ulong memUsed = memInfo.totalram - memInfo.freeram;
-        memUsed *= memInfo.mem_unit;
-        return memUsed;
-    }
-    
-    @trusted ulong physicalMemoryUsedByProcess()
-    {
-        c_ulong vsize;
-        c_long rss;
-        memoryUsedHelper(procSelf, vsize, rss);
-        return rss;
-    }
-    
-    @trusted ulong physicalMemoryUsedByProcess(int pid)
-    {
-        c_ulong vsize;
-        c_long rss;
-        
-        memoryUsedHelper(procOfPid(pid), vsize, rss);
-        return rss;
     }
 }
