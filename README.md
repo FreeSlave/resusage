@@ -50,10 +50,3 @@ In order to provide some functionality **resusage** dynamically loads the follow
 2. Pdh.dll to calculate CPU time used by system.
 
 If specific library could be loaded, corresponding functions will always throw *WindowsException*.
-
-### Linux
-
-Value returned by *physicalMemoryUsed* can be bigger than RAM actually used by all system's processes. 
-It's because Linux uses free memory for file cache to increase file access speed.
-This memory is still free for programs though, because the kernel will reallocate it when needed.
-To get memory used by processes, better consider using *virtualMemoryUsed*.

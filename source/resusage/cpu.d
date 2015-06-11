@@ -140,8 +140,11 @@ version(Windows)
         PDH_HCOUNTER cpuTotal;
     }
 
-    private @trusted void timesHelper(HANDLE handle, ref ULARGE_INTEGER now, ref ULARGE_INTEGER sys, ref ULARGE_INTEGER user)
+    private @trusted void timesHelper(int pid, ref ULARGE_INTEGER now, ref ULARGE_INTEGER sys, ref ULARGE_INTEGER user)
     {
+        HANDLE handle = openProcess(pid);
+        scope(exit) CloseHandle(handle);
+    
         FILETIME ftime, fsys, fuser;
         GetSystemTimeAsFileTime(&ftime);
         memcpy(&now, &ftime, FILETIME.sizeof);
@@ -153,29 +156,25 @@ version(Windows)
 
     private struct PlatformProcessCPUWatcher
     {
-        @trusted void initialize(int pid) {
-            handle = openProcess(pid);
-            _pid = pid;
-            shouldClose = true;
-            timesHelper(handle, lastCPU, lastSysCPU, lastUserCPU);
+        @trusted void initialize(int procId) {
+            pid = procId;
+            timesHelper(pid, lastCPU, lastSysCPU, lastUserCPU);
         }
         
         @trusted void initialize(HANDLE procHandle) {
-            handle = procHandle;
-            _pid = GetProcessId(procHandle);
-            timesHelper(handle, lastCPU, lastSysCPU, lastUserCPU);
+            pid = GetProcessId(procHandle);
+            timesHelper(pid, lastCPU, lastSysCPU, lastUserCPU);
         }
         
         @trusted void initialize() {
-            handle = GetCurrentProcess();
-            _pid = thisProcessID();
-            timesHelper(handle, lastCPU, lastSysCPU, lastUserCPU);
+            pid = thisProcessID();
+            timesHelper(pid, lastCPU, lastSysCPU, lastUserCPU);
         }
         
         @trusted double current()
         {
             ULARGE_INTEGER now, sys, user;
-            timesHelper(handle, now, sys, user);
+            timesHelper(pid, now, sys, user);
             
             double percent = (sys.QuadPart - lastSysCPU.QuadPart) + (user.QuadPart - lastUserCPU.QuadPart);
             percent /= (now.QuadPart - lastCPU.QuadPart);
@@ -188,25 +187,12 @@ version(Windows)
             return percent * 100;
         }
         
-        ~this() {
-            if (shouldClose) {
-                CloseHandle(handle);
-            }
-        }
-        
-        @trusted inout(HANDLE) osHandle() inout nothrow {
-            return handle;
-        }
-        
         @trusted int processID() const nothrow {
-            return _pid;
+            return pid;
         }
         
     private:
-        HANDLE handle;
-        int _pid;
-        double lastPercent;
-        bool shouldClose;
+        int pid;
         ULARGE_INTEGER lastCPU, lastUserCPU, lastSysCPU;
     }
 } else version(linux) {
@@ -329,10 +315,6 @@ version(Windows)
             return _pid;
         }
         
-        @trusted auto osHandle() const nothrow {
-            return _pid;
-        }
-        
     private:
         int _pid;
         double lastPercent;
@@ -394,11 +376,6 @@ final class ProcessCPUWatcher : CPUWatcher
     ///The process ID number.
     @safe int processID() const nothrow {
         return _watcher.processID();
-    }
-    
-    ///An operating system handle to the process.
-    @safe auto osHandle() nothrow {
-        return _watcher.osHandle();
     }
     
 private:
