@@ -6,7 +6,7 @@ Obtaining of virtual memory, RAM and CPU usage by the whole system or by single 
 
 Currently works on Linux and Windows.
 
-## Documentation
+## Generating documentation
 
 Ddoc:
 
@@ -16,17 +16,75 @@ Ddox:
 
     dub build --build=ddox
 
+## Brief
+
+```d
+// import module
+import resusage.memory;
+
+// or the whole package
+import resusage;
+
+// get system memory usage
+SystemMemInfo sysMemInfo = systemMemInfo(); 
+
+// access properties
+sysMemInfo.totalRAM;
+sysMemInfo.usedRAM;
+sysMemInfo.freeRAM;
+
+sysMemInfo.totalVirtMem;
+sysMemInfo.usedVirtMem;
+sysMemInfo.freeVirtMem;
+
+// actualize values after some amount of time
+sysMemInfo.update();
+
+// get memory usage of the current process
+ProcessMemInfo procMemInfo = processMemInfo();
+
+// or pass process ID to get info about specific process
+int pid = ...;
+ProcessMemInfo procMemInfo = processMemInfo(pid);
+
+// access properties
+procMemInfo.usedVirtMem;
+procMemInfo.usedRAM;
+
+// actualize values after some amount of time
+procMemInfo.update();
+
+//import module
+import resusage.cpu;
+
+// create watcher to watch system CPU
+auto cpuWatcher = new SystemCPUWatcher();
+
+// get actual value when needed
+double percent = cpuWatcher.current();
+
+// create CPU watcher for current process
+auto cpuWatcher = new ProcessCPUWatcher();
+
+// or for process with given id
+int pid = ...;
+auto cpuWatcher = new ProcessCPUWatcher(pid);
+
+// get actual value when needed
+double percent = cpuWatcher.current();
+```
+
 ## Examples
 
 ### Total usage
 
-Prints total amount of virtual and physical memory and their current usage in the system, in bytes.
+Prints total amount of virtual and physical memory (in bytes) and their current usage in the system (in percents).
 
     dub run resusage:totalusage 
 
 ### Process usage
 
-Prints amount of virtual and physical memory used by process.
+Prints amount of virtual and physical memory currently used by process, in bytes.
 
     dub run resusage:processusage -- `pidof process`
 

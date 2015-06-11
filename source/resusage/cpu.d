@@ -335,6 +335,7 @@ final class SystemCPUWatcher : CPUWatcher
     
     /**
      * CPU time used by all processes in the system, in percents.
+     * This returns the average value amongst all CPUs, thus can't exceed 100.
      */
     @safe override double current() {
         return _watcher.current();

@@ -20,8 +20,6 @@ void main(string[] args)
     while(true) {
         Thread.sleep(dur!("seconds")(3));
         double percent = cpuWatcher.current();
-        if (percent >= 0.0) {
-            writefln("%s%%", percent);
-        }
+        writefln("%s%%", percent);
     }
 }
