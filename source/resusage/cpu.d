@@ -321,6 +321,44 @@ version(Windows)
         const(char)* _proc;
         clock_t lastCPU, lastUserCPU, lastSysCPU;
     }
+} else version(FreeBSD) {
+    private struct PlatformSystemCPUWatcher
+    {
+        @trusted void initialize() {
+            
+        }
+        
+        @trusted double current()
+        {
+            return 0.0;
+        }
+        
+    private:
+        
+    }
+    
+    private struct PlatformProcessCPUWatcher
+    {
+        @trusted void initialize(int pid) {
+            _pid = pid;
+        }
+        
+        @trusted void initialize() {
+            _pid = thisProcessID;
+        }
+        
+        @trusted double current()
+        {
+            return 0.0;
+        }
+        
+        @trusted int processID() const nothrow {
+            return _pid;
+        }
+        
+    private:
+        int _pid;
+    }
 }
 
 ///System CPU watcher.

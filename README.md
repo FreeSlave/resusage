@@ -5,6 +5,7 @@ Obtaining of virtual memory, RAM and CPU usage by the whole system or by single 
 [![Build Status](https://travis-ci.org/MyLittleRobo/resusage.svg?branch=master)](https://travis-ci.org/MyLittleRobo/resusage)
 
 Currently works on Linux and Windows.
+FreeBSD support is partial - only system-wide memory information can be retrieved now.
 
 ## Generating documentation
 
@@ -108,3 +109,11 @@ In order to provide some functionality **resusage** dynamically loads the follow
 2. Pdh.dll to calculate CPU time used by system.
 
 If specific library could be loaded, corresponding functions will always throw *WindowsException*.
+
+### Linux
+
+Uses sysinfo and proc stats.
+
+### FreeBSD
+
+Uses sysctl to get RAM and libkvm to get swap memory to calculate virtual memory.

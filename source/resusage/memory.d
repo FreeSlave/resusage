@@ -411,4 +411,129 @@ version(Docs)
         c_ulong vsize;
         c_long rss;
     }
+} else version(FreeBSD) {
+    
+    private {
+        import core.sys.posix.fcntl;
+        
+        struct kvm_t;
+        
+        struct kvm_swap {
+            char[32] ksw_devname;
+            int ksw_used;
+            int ksw_total;
+            int ksw_flags;
+            int ksw_reserved1;
+            int ksw_reserved2;
+        };
+        
+        extern(C) @nogc @system nothrow {
+            int sysctl(const(int)* name, uint namelen, void *oldp, size_t *oldlenp, const(void)* newp, size_t newlen);
+            int sysctlbyname(const(char)* name, void *oldp, size_t *oldlenp, const(void)* newp, size_t newlen);
+            
+            kvm_t *kvm_open(const(char)*, const(char)*, const(char)*, int, const(char)*);
+            int kvm_close(kvm_t *);
+            int kvm_getswapinfo(kvm_t*, kvm_swap*, int, int);
+            
+            int getpagesize();
+        }
+        
+    }
+
+    struct SystemMemInfo
+    {
+        @nogc @safe ulong totalRAM() const nothrow {
+            return _totalRam;
+        }
+        @nogc @safe ulong freeRAM() const nothrow {
+            return _freeRam;
+        }
+        @nogc @safe double freeRAMPercent() const nothrow {
+            return percent(totalRAM, freeRAM);
+        }
+        @nogc @safe ulong usedRAM() const nothrow {
+            return totalRAM() - freeRAM();
+        }
+        @nogc @safe double usedRAMPercent() const nothrow {
+            return percent(totalRAM, usedRAM);
+        }
+        
+        @nogc @safe ulong totalVirtMem() const nothrow {
+            return _totalVirtMem;
+        }
+        @nogc @safe ulong freeVirtMem() const nothrow {
+            return _freeVirtMem;
+        }
+        @nogc @safe double freeVirtMemPercent() const nothrow {
+            return percent(totalVirtMem, freeVirtMem);
+        }
+        @nogc @safe ulong usedVirtMem() const nothrow {
+            return totalVirtMem() - freeVirtMem();
+        }
+        @nogc @safe double usedVirtMemPercent() const nothrow {
+            return percent(totalVirtMem, usedVirtMem);
+        }
+        
+        @trusted void update() {
+            kvm_t* kvmh = errnoEnforce(kvm_open(null, "/dev/null", "/dev/null", O_RDONLY, "kvm_open"));
+            scope(exit) kvm_close(kvmh);
+            kvm_swap k_swap;
+            
+            errnoEnforce(kvm_getswapinfo(kvmh, &k_swap, 1, 0) != -1);
+            
+            ulong pageSize = cast(ulong)getpagesize();
+            
+            static @trusted int ctlValueByName(const(char)* name) {
+                int value;
+                size_t len = int.sizeof;
+                errnoEnforce(sysctlbyname(name, &value, &len, null, 0) == 0);
+                return value;
+            }
+            
+            int totalPages = ctlValueByName("vm.stats.vm.v_page_count");
+            int freePages = ctlValueByName("vm.stats.vm.v_free_count");
+            
+            _totalRam = cast(ulong)totalPages * pageSize;
+            _freeRam = cast(ulong)freePages * pageSize;
+            
+            _totalVirtMem = cast(ulong)k_swap.ksw_total * pageSize + _totalRam;
+            _freeVirtMem = cast(ulong)(k_swap.ksw_total - k_swap.ksw_used) * pageSize + _freeRam;
+            
+        }
+    private:
+        ulong _totalRam;
+        ulong _freeRam;
+        
+        ulong _totalVirtMem;
+        ulong _freeVirtMem;
+    }
+    
+    struct ProcessMemInfo
+    {
+        @nogc @safe ulong usedRAM() const nothrow {
+            return 0;
+        }
+        @nogc @safe ulong usedVirtMem() const nothrow {
+            return 0;
+        }
+        
+        @trusted void update() {
+            
+        }
+        
+        @nogc @safe int processID() const nothrow {
+            return pid;
+        }
+        
+    private:
+        void initialize() {
+            pid = thisProcessID;
+        }
+    
+        void initialize(int procId) {
+            pid = procId;
+        }
+    
+        int pid;
+    }
 }
