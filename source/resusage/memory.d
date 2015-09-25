@@ -536,4 +536,68 @@ version(Docs)
     
         int pid;
     }
+} else version(OSX) {
+    struct SystemMemInfo
+    {
+        @nogc @safe ulong totalRAM() const nothrow {
+            return 0;
+        }
+        @nogc @safe ulong freeRAM() const nothrow {
+            return 0;
+        }
+        @nogc @safe double freeRAMPercent() const nothrow {
+            return 0;
+        }
+        @nogc @safe ulong usedRAM() const nothrow {
+            return 0;
+        }
+        @nogc @safe double usedRAMPercent() const nothrow {
+            return 0;
+        }
+        
+        @nogc @safe ulong totalVirtMem() const nothrow {
+            return 0;
+        }
+        @nogc @safe ulong freeVirtMem() const nothrow {
+            return 0;
+        }
+        @nogc @safe double freeVirtMemPercent() const nothrow {
+            return percent(totalVirtMem, freeVirtMem);
+        }
+        @nogc @safe ulong usedVirtMem() const nothrow {
+            return totalVirtMem() - freeVirtMem();
+        }
+        @nogc @safe double usedVirtMemPercent() const nothrow {
+            return percent(totalVirtMem, usedVirtMem);
+        }
+        @trusted void update() {
+        }
+    }
+    
+    struct ProcessMemInfo
+    {
+        @nogc @safe ulong usedRAM() const nothrow {
+            return 0;
+        }
+        @nogc @safe ulong usedVirtMem() const nothrow {
+            return 0;
+        }
+        
+        @trusted void update() {
+        }
+        
+        @nogc @safe int processID() const nothrow {
+            return pid;
+        }
+        
+    private:
+        void initialize() {
+        }
+    
+        void initialize(int procId) {
+        }
+    
+        int pid;
+        const(char)* proc;
+    }
 }
