@@ -28,7 +28,7 @@ interface CPUWatcher
 
 version(Windows)
 {
-    private import std.c.string : memcpy;
+    private import core.stdc.string : memcpy;
     
     private {
         alias HANDLE PDH_HQUERY;
@@ -197,7 +197,7 @@ version(Windows)
     }
 } else version(linux) {
 
-    private import std.c.time : clock;
+    private import core.stdc.time : clock;
     
     private @trusted void readProcStat(ref ulong totalUser, ref ulong totalUserLow, ref ulong totalSys, ref ulong totalIdle)
     {

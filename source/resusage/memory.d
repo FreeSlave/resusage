@@ -50,7 +50,7 @@ private @nogc @safe double percent(ulong total, ulong part) pure nothrow {
     return 0.0;
 }
 
-version(Docs)
+version(ResUsageDocs)
 {
     ///System-wide memory information.
     struct SystemMemInfo

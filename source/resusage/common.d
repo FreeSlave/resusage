@@ -31,7 +31,7 @@ version(Windows) {
     import core.sys.posix.unistd;
     import core.sys.linux.config;
     
-    import std.c.stdio : FILE, fopen, fclose, fscanf;
+    import core.stdc.stdio : FILE, fopen, fclose, fscanf;
     import std.conv : to;
     import std.string : toStringz;
 

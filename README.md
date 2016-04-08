@@ -108,7 +108,7 @@ In order to provide some functionality **resusage** dynamically loads the follow
 1. Psapi.dll to get memory (physical and virtual) used by specific process.
 2. Pdh.dll to calculate CPU time used by system.
 
-If specific library could be loaded, corresponding functions will always throw *WindowsException*.
+If specific library could not be loaded, corresponding functions will always throw *WindowsException*.
 
 ### Linux
 
