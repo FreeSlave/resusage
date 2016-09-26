@@ -2,7 +2,7 @@
 
 Obtaining of virtual memory, RAM and CPU usage by the whole system or by single process.
 
-[![Build Status](https://travis-ci.org/MyLittleRobo/resusage.svg?branch=master)](https://travis-ci.org/MyLittleRobo/resusage)
+[![Build Status](https://travis-ci.org/FreeSlave/resusage.svg?branch=master)](https://travis-ci.org/FreeSlave/resusage)
 
 Currently works on Linux and Windows.
 FreeBSD support is partial - only system-wide memory information can be retrieved now.
