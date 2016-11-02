@@ -248,23 +248,23 @@ version(Windows)
     private @trusted void timesHelper(const char* proc, ref clock_t utime, ref clock_t stime)
     {
         FILE* f = errnoEnforce(fopen(proc, "r"));
-        errnoEnforce(fscanf(f, 
-                     "%*d " //pid
-                     "%*s " //comm
-                     "%*c " //state
-                     "%*d " //ppid
-                     "%*d " //pgrp
-                     "%*d " //session
-                     "%*d " //tty_nr
-                     "%*d " //tpgid
-                     "%*u " //flags
-                     "%*lu " //minflt
-                     "%*lu " //cminflt
-                     "%*lu " //majflt
-                     "%*lu " //cmajflt
-                     "%lu " //utime
-                     "%lu " //stime
-                     "%*ld " //cutime
+        errnoEnforce(fscanf(f,
+                     "%*d " ~//pid
+                     "%*s " ~//comm
+                     "%*c " ~//state
+                     "%*d " ~//ppid
+                     "%*d " ~//pgrp
+                     "%*d " ~//session
+                     "%*d " ~//tty_nr
+                     "%*d " ~//tpgid
+                     "%*u " ~//flags
+                     "%*lu " ~//minflt
+                     "%*lu " ~//cminflt
+                     "%*lu " ~//majflt
+                     "%*lu " ~//cmajflt
+                     "%lu " ~//utime
+                     "%lu " ~//stime
+                     "%*ld " ~//cutime
                      "%*ld ", //cstime
                &utime, &stime
               ));

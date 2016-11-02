@@ -299,30 +299,30 @@ version(ResUsageDocs)
     {
         FILE* f = errnoEnforce(fopen(proc, "r"));
         scope(exit) fclose(f);
-        errnoEnforce(fscanf(f, 
-                     "%*d " //pid
-                     "%*s " //comm
-                     "%*c " //state
-                     "%*d " //ppid
-                     "%*d " //pgrp
-                     "%*d " //session
-                     "%*d " //tty_nr
-                     "%*d " //tpgid
-                     "%*u " //flags
-                     "%*lu " //minflt
-                     "%*lu " //cminflt
-                     "%*lu " //majflt
-                     "%*lu " //cmajflt
-                     "%*lu " //utime
-                     "%*lu " //stime
-                     "%*ld " //cutime
-                     "%*ld " //cstime
-                     "%*ld " //priority
-                     "%*ld " //nice
-                     "%*ld " //num_threads
-                     "%*ld " //itrealvalue
-                     "%*llu " //starttime
-                     "%lu " //vsize
+        errnoEnforce(fscanf(f,
+                     "%*d " ~//pid
+                     "%*s " ~//comm
+                     "%*c " ~//state
+                     "%*d " ~//ppid
+                     "%*d " ~//pgrp
+                     "%*d " ~//session
+                     "%*d " ~//tty_nr
+                     "%*d " ~//tpgid
+                     "%*u " ~//flags
+                     "%*lu " ~//minflt
+                     "%*lu " ~//cminflt
+                     "%*lu " ~//majflt
+                     "%*lu " ~//cmajflt
+                     "%*lu " ~//utime
+                     "%*lu " ~//stime
+                     "%*ld " ~//cutime
+                     "%*ld " ~//cstime
+                     "%*ld " ~//priority
+                     "%*ld " ~//nice
+                     "%*ld " ~//num_threads
+                     "%*ld " ~//itrealvalue
+                     "%*llu " ~//starttime
+                     "%lu " ~//vsize
                      "%ld ", //rss
                &vsize, &rss
               ) == 2);
