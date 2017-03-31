@@ -202,8 +202,8 @@ version(Windows)
     private @trusted void readProcStat(ref ulong totalUser, ref ulong totalUserLow, ref ulong totalSys, ref ulong totalIdle)
     {
         FILE* f = errnoEnforce(fopen("/proc/stat", "r"));
+        scope(exit) fclose(f);
         errnoEnforce(fscanf(f, "cpu %Lu %Lu %Lu %Lu", &totalUser, &totalUserLow, &totalSys, &totalIdle) == 4);
-        fclose(f);
     }
     
     private struct PlatformSystemCPUWatcher
@@ -248,6 +248,7 @@ version(Windows)
     private @trusted void timesHelper(const char* proc, ref clock_t utime, ref clock_t stime)
     {
         FILE* f = errnoEnforce(fopen(proc, "r"));
+        scope(exit) fclose(f);
         errnoEnforce(fscanf(f,
                      "%*d " ~//pid
                      "%*s " ~//comm
@@ -268,7 +269,6 @@ version(Windows)
                      "%*ld ", //cstime
                &utime, &stime
               ));
-        fclose(f);
     }
 
     private struct PlatformProcessCPUWatcher
