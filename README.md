@@ -99,21 +99,30 @@ Watch process CPU time:
 
     dub run resusage:cpuwatcher -- `pidof process`
 
+Spawn prcoess and watch for its CPU time:
+
+    dub run resusage:cpuwatcher -- --spawn firefox
+
+Adjust the rate of output:
+
+    dub run resusage:cpuwatcher -- --rate=1 --spawn firefox
+
 ## Platform notes and implementation details
 
 ### Windows
 
 In order to provide some functionality **resusage** dynamically loads the following libraries at startup:
  
-1. Psapi.dll to get memory (physical and virtual) used by specific process.
-2. Pdh.dll to calculate CPU time used by system.
+1. [GetProcessMemoryInfo](https://msdn.microsoft.com/en-us/library/windows/desktop/ms683219(v=vs.85).aspx) to get memory (physical and virtual) used by specific process.
+2. [Pdh.dll](https://msdn.microsoft.com/en-us/library/windows/desktop/aa373083(v=vs.85).aspx) to calculate CPU time used by system.
 
-If specific library could not be loaded, corresponding functions will always throw *WindowsException*.
+If Psapi.dll or Pdh.dll could not be loaded, corresponding functions will always throw *WindowsException*.
 
 ### Linux
 
-Uses sysinfo and proc stats.
+Uses [sysinfo](https://linux.die.net/man/2/sysinfo), [clock_gettime](https://linux.die.net/man/3/clock_gettime) and proc stats.
 
 ### FreeBSD
 
-Uses sysctl to get RAM and libkvm to get swap memory to calculate virtual memory.
+Uses [sysctl](https://www.freebsd.org/cgi/man.cgi?query=sysctl&apropos=0&sektion=3&arch=default&format=html) to get RAM and 
+[libkvm](https://www.freebsd.org/cgi/man.cgi?query=kvm_open&apropos=0&sektion=3&arch=default&format=html) to get swap memory to calculate virtual memory.
