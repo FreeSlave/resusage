@@ -251,8 +251,16 @@ version(Windows)
     private auto getClockTime(clockid_t clockId)
     {
         timespec spec;
-        errnoEnforce(clock_gettime(clockId, &spec) == 0, "clock_gettime");
-        return dur!"seconds"(spec.tv_sec) + dur!"nsecs"(spec.tv_nsec);
+        auto result = clock_gettime(clockId, &spec);
+        if (result != 0) {
+            if (errno == EINVAL) {
+                throw new ErrnoException("clock_gettime failed, the watched process probably died");
+            } else {
+                throw new ErrnoException("clock_gettime");
+            }
+        } else {
+            return dur!"seconds"(spec.tv_sec) + dur!"nsecs"(spec.tv_nsec);
+        }
     }
     
     private struct PlatformProcessCPUWatcher
