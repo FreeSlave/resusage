@@ -10,7 +10,7 @@
     
     "libs-freebsd" : ["kvm"],
 
-    "subPackages" : ["./examples/totalusage", "./examples/processusage", "./examples/cpuwatcher"],
+    "subPackages" : ["./examples/totalusage", "./examples/processusage", "./examples/cpuwatcher", "./examples/cpuselfwatcher"],
     
     "buildTypes" : {
         "docs" : {

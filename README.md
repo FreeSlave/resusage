@@ -107,6 +107,14 @@ Adjust the rate of output:
 
     dub run resusage:cpuwatcher -- --rate=1 --spawn firefox
 
+### CPU self watcher
+
+Consume CPU time and report CPU usage by this process:
+
+    dub run :cpuselfwatcher -- --threads=2
+
+E.g. if you have 4 cores and run this example with 2 threads it will report 50% CPU time.
+
 ## Platform notes and implementation details
 
 ### Windows
