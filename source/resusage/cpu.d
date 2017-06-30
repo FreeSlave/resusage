@@ -241,81 +241,6 @@ version(Windows)
         ulong lastTotalUser, lastTotalUserLow, lastTotalSys, lastTotalIdle;
         double lastPercent;
     }
-
-    private import core.time;
-    private import core.sys.posix.time;
-    private import core.sys.posix.unistd;
-    private import core.stdc.errno;
-    extern(C) int clock_getcpuclockid(pid_t pid, clockid_t *clock_id);
-    
-    private auto getClockTime(clockid_t clockId)
-    {
-        timespec spec;
-        auto result = clock_gettime(clockId, &spec);
-        if (result != 0) {
-            if (errno == EINVAL) {
-                throw new ErrnoException("clock_gettime failed, the watched process probably died");
-            } else {
-                throw new ErrnoException("clock_gettime");
-            }
-        } else {
-            return dur!"seconds"(spec.tv_sec) + dur!"nsecs"(spec.tv_nsec);
-        }
-    }
-    
-    private struct PlatformProcessCPUWatcher
-    {
-        @trusted void initialize(int pid) {
-            _pid = pid;
-            int result = clock_getcpuclockid(pid, &clockId);
-            if (result == 0) {
-                lastCPUTime = getClockTime(clockId);
-            } else {
-                errno = result;
-                errnoEnforce(false, "clock_getcpuclockid");
-            }
-            lastTime = getClockTime(CLOCK_MONOTONIC);
-        }
-        
-        @trusted void initialize() {
-            _pid = getpid();
-            clockId = CLOCK_PROCESS_CPUTIME_ID;
-            lastCPUTime = getClockTime(clockId);
-            lastTime = getClockTime(CLOCK_MONOTONIC);
-        }
-        
-        @trusted double current()
-        {
-            auto nowTime = getClockTime(CLOCK_MONOTONIC);
-            auto nowCPUTime = getClockTime(clockId);
-            double percent;
-            
-            if (nowTime < lastTime || nowCPUTime < lastCPUTime) {
-                //Overflow detection. Just skip this value.
-                return lastPercent;
-            } else {
-                percent = (nowCPUTime - lastCPUTime).total!"hnsecs";
-                percent /= (nowTime - lastTime).total!"hnsecs";
-                percent /= totalCPUs;
-                percent *= 100;
-            }
-            lastTime = nowTime;
-            lastCPUTime = nowCPUTime;
-            lastPercent = percent;
-            return percent;
-        }
-        
-        @trusted int processID() const nothrow {
-            return _pid;
-        }
-        
-    private:
-        int _pid;
-        double lastPercent;
-        clockid_t clockId;
-        Duration lastTime;
-        Duration lastCPUTime;
-    }
 } else version(FreeBSD) {
     private struct PlatformSystemCPUWatcher
     {
@@ -330,29 +255,6 @@ version(Windows)
         
     private:
         
-    }
-    
-    private struct PlatformProcessCPUWatcher
-    {
-        @trusted void initialize(int pid) {
-            _pid = pid;
-        }
-        
-        @trusted void initialize() {
-            _pid = thisProcessID;
-        }
-        
-        @trusted double current()
-        {
-            return 0.0;
-        }
-        
-        @trusted int processID() const nothrow {
-            return _pid;
-        }
-        
-    private:
-        int _pid;
     }
 } else version(OSX) {
     private struct PlatformSystemCPUWatcher
@@ -391,6 +293,89 @@ version(Windows)
         
     private:
         int _pid;
+    }
+}
+
+static if (is(typeof({import core.sys.posix.time : CLOCK_MONOTONIC;})))
+{
+    private import core.sys.posix.time;
+    private import core.time;
+    private import core.sys.posix.unistd;
+    private import core.stdc.errno;
+    extern(C) @nogc int clock_getcpuclockid(pid_t pid, clockid_t *clock_id) nothrow;
+    
+    private auto getClockTime(clockid_t clockId)
+    {
+        timespec spec;
+        auto result = clock_gettime(clockId, &spec);
+        if (result != 0) {
+            if (errno == EINVAL) {
+                throw new ErrnoException("clock_gettime failed, the watched process probably died");
+            } else {
+                throw new ErrnoException("clock_gettime");
+            }
+        } else {
+            return dur!"seconds"(spec.tv_sec) + dur!"nsecs"(spec.tv_nsec);
+        }
+    }
+    
+    private struct PlatformProcessCPUWatcher
+    {
+        @trusted void initialize(int pid) {
+            _pid = pid;
+            int result = clock_getcpuclockid(pid, &clockId);
+            if (result == 0) {
+                lastCPUTime = getClockTime(clockId);
+            } else {
+                errno = result;
+                errnoEnforce(false, "clock_getcpuclockid");
+            }
+            lastTime = getClockTime(CLOCK_MONOTONIC);
+        }
+        
+        @trusted void initialize() {
+            static if (is(typeof({import core.sys.posix.time : CLOCK_PROCESS_CPUTIME_ID;}))) {
+                import core.sys.posix.time : CLOCK_PROCESS_CPUTIME_ID;
+                _pid = getpid();
+                clockId = CLOCK_PROCESS_CPUTIME_ID;
+                lastCPUTime = getClockTime(clockId);
+                lastTime = getClockTime(CLOCK_MONOTONIC);
+            } else {
+                initialize(getpid());
+            }
+        }
+        
+        @trusted double current()
+        {
+            auto nowTime = getClockTime(CLOCK_MONOTONIC);
+            auto nowCPUTime = getClockTime(clockId);
+            double percent;
+            
+            if (nowTime < lastTime || nowCPUTime < lastCPUTime) {
+                //Overflow detection. Just skip this value.
+                return lastPercent;
+            } else {
+                percent = (nowCPUTime - lastCPUTime).total!"hnsecs";
+                percent /= (nowTime - lastTime).total!"hnsecs";
+                percent /= totalCPUs;
+                percent *= 100;
+            }
+            lastTime = nowTime;
+            lastCPUTime = nowCPUTime;
+            lastPercent = percent;
+            return percent;
+        }
+        
+        @trusted int processID() const nothrow {
+            return _pid;
+        }
+        
+    private:
+        int _pid;
+        double lastPercent;
+        clockid_t clockId;
+        Duration lastTime;
+        Duration lastCPUTime;
     }
 }
 
