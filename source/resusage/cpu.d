@@ -196,9 +196,6 @@ version(Windows)
         ULARGE_INTEGER lastCPU, lastUserCPU, lastSysCPU;
     }
 } else version(linux) {
-
-    private import core.stdc.time : clock;
-    
     private @trusted void readProcStat(ref ulong totalUser, ref ulong totalUserLow, ref ulong totalSys, ref ulong totalIdle)
     {
         FILE* f = errnoEnforce(fopen("/proc/stat", "r"));
@@ -244,69 +241,58 @@ version(Windows)
         ulong lastTotalUser, lastTotalUserLow, lastTotalSys, lastTotalIdle;
         double lastPercent;
     }
-    
-    private @trusted void timesHelper(const char* proc, ref clock_t utime, ref clock_t stime)
-    {
-        FILE* f = errnoEnforce(fopen(proc, "r"));
-        scope(exit) fclose(f);
-        errnoEnforce(fscanf(f,
-                     "%*d " ~//pid
-                     "%*s " ~//comm
-                     "%*c " ~//state
-                     "%*d " ~//ppid
-                     "%*d " ~//pgrp
-                     "%*d " ~//session
-                     "%*d " ~//tty_nr
-                     "%*d " ~//tpgid
-                     "%*u " ~//flags
-                     "%*lu " ~//minflt
-                     "%*lu " ~//cminflt
-                     "%*lu " ~//majflt
-                     "%*lu " ~//cmajflt
-                     "%lu " ~//utime
-                     "%lu " ~//stime
-                     "%*ld " ~//cutime
-                     "%*ld ", //cstime
-               &utime, &stime
-              ));
-    }
 
+    private import core.time;
+    private import core.sys.posix.time;
+    private import core.sys.posix.unistd;
+    private import core.stdc.errno;
+    extern(C) int clock_getcpuclockid(pid_t pid, clockid_t *clock_id);
+    
+    private auto getClockTime(clockid_t clockId)
+    {
+        timespec spec;
+        errnoEnforce(clock_gettime(clockId, &spec) == 0, "clock_gettime");
+        return dur!"seconds"(spec.tv_sec) + dur!"nsecs"(spec.tv_nsec);
+    }
+    
     private struct PlatformProcessCPUWatcher
     {
         @trusted void initialize(int pid) {
-            _proc = procOfPid(pid);
             _pid = pid;
-            lastCPU = clock();
-            timesHelper(_proc, lastUserCPU, lastSysCPU);
+            int result = clock_getcpuclockid(pid, &clockId);
+            if (result == 0) {
+                lastCPUTime = getClockTime(clockId);
+            } else {
+                errno = result;
+                errnoEnforce(false, "clock_getcpuclockid");
+            }
+            lastTime = getClockTime(CLOCK_MONOTONIC);
         }
         
         @trusted void initialize() {
-            _proc = procSelf;
-            _pid = thisProcessID();
-            lastCPU = clock();
-            timesHelper(_proc, lastUserCPU, lastSysCPU);
+            _pid = getpid();
+            clockId = CLOCK_PROCESS_CPUTIME_ID;
+            lastCPUTime = getClockTime(clockId);
+            lastTime = getClockTime(CLOCK_MONOTONIC);
         }
         
         @trusted double current()
         {
-            clock_t nowCPU, nowUserCPU, nowSysCPU;
+            auto nowTime = getClockTime(CLOCK_MONOTONIC);
+            auto nowCPUTime = getClockTime(clockId);
             double percent;
             
-            nowCPU = clock();
-            timesHelper(_proc, nowUserCPU, nowSysCPU);
-            
-            if (nowCPU <= lastCPU || nowUserCPU < lastUserCPU || nowSysCPU < lastSysCPU) {
+            if (nowTime < lastTime || nowCPUTime < lastCPUTime) {
                 //Overflow detection. Just skip this value.
                 return lastPercent;
             } else {
-                percent = (nowSysCPU - lastSysCPU) + (nowUserCPU - lastUserCPU);
-                percent /= (nowCPU - lastCPU);
+                percent = (nowCPUTime - lastCPUTime).total!"hnsecs";
+                percent /= (nowTime - lastTime).total!"hnsecs";
                 percent /= totalCPUs;
                 percent *= 100;
             }
-            lastCPU = nowCPU;
-            lastUserCPU = nowUserCPU;
-            lastSysCPU = nowSysCPU;
+            lastTime = nowTime;
+            lastCPUTime = nowCPUTime;
             lastPercent = percent;
             return percent;
         }
@@ -318,8 +304,9 @@ version(Windows)
     private:
         int _pid;
         double lastPercent;
-        const(char)* _proc;
-        clock_t lastCPU, lastUserCPU, lastSysCPU;
+        clockid_t clockId;
+        Duration lastTime;
+        Duration lastCPUTime;
     }
 } else version(FreeBSD) {
     private struct PlatformSystemCPUWatcher
