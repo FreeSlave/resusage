@@ -5,14 +5,15 @@ Obtaining of virtual memory, RAM and CPU usage by the whole system or by single 
 [![Build Status](https://travis-ci.org/FreeSlave/resusage.svg?branch=master)](https://travis-ci.org/FreeSlave/resusage) [![Windows Build Status](https://ci.appveyor.com/api/projects/status/github/FreeSlave/resusage?branch=master&svg=true)](https://ci.appveyor.com/project/FreeSlave/resusage)
 
 Currently works on Linux and Windows.
-FreeBSD support is partial - only system-wide memory information can be retrieved now.
+
+FreeBSD support is partial - only system-wide memory information and per-process CPU usage can be retrieved now.
 
 ## Generating documentation
 
 Ddoc:
 
     dub build --build=docs
-    
+
 Ddox:
 
     dub build --build=ddox
@@ -134,3 +135,4 @@ Uses [sysinfo](https://linux.die.net/man/2/sysinfo), [clock_gettime](https://lin
 
 Uses [sysctl](https://www.freebsd.org/cgi/man.cgi?query=sysctl&apropos=0&sektion=3&arch=default&format=html) to get RAM and 
 [libkvm](https://www.freebsd.org/cgi/man.cgi?query=kvm_open&apropos=0&sektion=3&arch=default&format=html) to get swap memory to calculate virtual memory.
+Uses clock_gettime to evaluate CPU usage.
