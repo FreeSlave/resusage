@@ -78,41 +78,41 @@ double percent = cpuWatcher.current();
 
 ## Examples
 
-### [Total usage](examples/totalusage/source/app.d)
+### [Total usage](examples/totalusage.d)
 
 Prints total amount of virtual and physical memory (in bytes) and their current usage in the system (in percents).
 
-    dub run resusage:totalusage 
+    dub examples/totalusage.d
 
-### [Process usage](examples/processusage/source/app.d)
+### [Process usage](examples/processusage.d)
 
 Prints amount of virtual and physical memory currently used by process, in bytes.
 
-    dub run resusage:processusage -- `pidof process`
+    dub examples/processusage.d `pidof process`
 
-### [CPU Watcher](examples/cpuwatcher/source/app.d)
+### [CPU Watcher](examples/cpuwatcher.d)
 
 Watch system CPU time:
 
-    dub run resusage:cpuwatcher
+    dub examples/cpuwatcher.d
 
 Watch process CPU time:
 
-    dub run resusage:cpuwatcher -- `pidof process`
+    dub examples/cpuwatcher.d `pidof process`
 
 Spawn prcoess and watch for its CPU time:
 
-    dub run resusage:cpuwatcher -- --spawn firefox
+    dub examples/cpuwatcher.d --spawn firefox
 
 Adjust the rate of output:
 
-    dub run resusage:cpuwatcher -- --rate=1 --spawn firefox
+    dub examples/cpuwatcher.d --rate=1 --spawn firefox
 
-### [CPU self watcher](examples/cpuselfwatcher/source/app.d)
+### [CPU self watcher](examples/cpuselfwatcher.d)
 
 Consume CPU time and report CPU usage by this process:
 
-    dub run :cpuselfwatcher -- --threads=2
+    dub examples/cpuselfwatcher --threads=2
 
 E.g. if you have 4 cores and run this example with 2 threads it will report 50% CPU time.
 

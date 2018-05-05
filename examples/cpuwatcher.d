@@ -1,3 +1,7 @@
+/+dub.sdl:
+name "cpuwatcher"
+dependency "resusage" path="../"
++/
 import std.stdio;
 import std.conv;
 import std.getopt;

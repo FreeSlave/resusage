@@ -7,11 +7,9 @@
     "targetName" : "resusage", 
     "targetPath" : "lib", 
     "targetType" : "library",
-    
+
     "libs-freebsd" : ["kvm"],
 
-    "subPackages" : ["./examples/totalusage", "./examples/processusage", "./examples/cpuwatcher", "./examples/cpuselfwatcher"],
-    
     "buildTypes" : {
         "docs" : {
             "buildOptions" : ["syntaxOnly"],

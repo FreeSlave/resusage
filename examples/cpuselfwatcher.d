@@ -1,3 +1,7 @@
+/+dub.sdl:
+name "cpuselfwatcher"
+dependency "resusage" path="../"
++/
 import std.stdio;
 import core.thread;
 import core.time;
