@@ -1,12 +1,12 @@
 /**
  * The amount of virtual and physycal memory used by system or process.
- * Authors: 
+ * Authors:
  *  $(LINK2 https://github.com/FreeSlave, Roman Chistokhodov).
- * License: 
+ * License:
  *  $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0).
  * Copyright:
  *  Roman Chistokhodov 2015
- * 
+ *
  * Note: Every function may throw on fail ($(B ErrnoException) on Linux, $(B WindowsException) on Windows).
  */
 
@@ -57,53 +57,53 @@ version(ResUsageDocs)
     {
         ///Total physycal memory in the system, in bytes.
         @nogc @safe ulong totalRAM() const nothrow;
-        
+
         ///Amout of physycal memory currently available (free), in bytes.
         @nogc @safe ulong freeRAM() const nothrow;
-        
+
         ///Amout of physycal memory currently available (free), in percents of total physycal memory.
         @nogc @safe double freeRAMPercent() const nothrow;
-        
+
         ///Amout of physycal memory currently in use, in bytes.
         @nogc @safe ulong usedRAM() const nothrow;
-        
+
         ///Amout of physycal memory currently in use, in percents of total physycal memory.
         @nogc @safe double usedRAMPercent() const nothrow;
-        
+
         ///Total virtual memory in the system, in bytes.
         @nogc @safe ulong totalVirtMem() const nothrow;
-        
+
         ///Amout of virtual memory currently available (free), in bytes.
         @nogc @safe ulong freeVirtMem() const nothrow;
-        
+
         ///Amout of virtual memory currently available (free), in percents of total virtual memory.
         @nogc @safe double freeVirtMemPercent() const nothrow;
-        
+
         ///Amout of virtual memory currently in use, in bytes.
         @nogc @safe ulong usedVirtMem() const nothrow;
-        
+
         ///Amout of virtual memory currently in use, in percents of total virtual memory.
         @nogc @safe double usedVirtMemPercent() const nothrow;
-        
+
         ///Actualize values.
         @trusted void update();
     }
-    
+
     ///Single process memory information.
     struct ProcessMemInfo
     {
         ///Amount of physycal memory (RAM) currently used by single process, in bytes.
         @nogc @safe ulong usedRAM() const nothrow;
-        
+
         ///Amount of virtual memory currently used by single process, in bytes.
         @nogc @safe ulong usedVirtMem() const nothrow;
-        
+
         ///Actualize values.
         @trusted void update();
-        
+
         ///ID of underlying process.
         @nogc @safe int processID() const nothrow;
-        
+
     private:
         void initialize();
         void initialize(int pid);
@@ -119,7 +119,7 @@ version(ResUsageDocs)
 
     private {
         alias ulong DWORDLONG;
-        
+
         struct MEMORYSTATUSEX {
             DWORD     dwLength;
             DWORD     dwMemoryLoad;
@@ -131,9 +131,9 @@ version(ResUsageDocs)
             DWORDLONG ullAvailVirtual;
             DWORDLONG ullAvailExtendedVirtual;
         };
-        
+
         extern(Windows) BOOL GlobalMemoryStatusEx(MEMORYSTATUSEX* lpBuffer) @system nothrow;
-        
+
         struct PROCESS_MEMORY_COUNTERS {
             DWORD  cb;
             DWORD  PageFaultCount;
@@ -146,7 +146,7 @@ version(ResUsageDocs)
             SIZE_T PagefileUsage;
             SIZE_T PeakPagefileUsage;
         };
-        
+
         struct PROCESS_MEMORY_COUNTERS_EX {
             DWORD  cb;
             DWORD  PageFaultCount;
@@ -160,30 +160,30 @@ version(ResUsageDocs)
             SIZE_T PeakPagefileUsage;
             SIZE_T PrivateUsage;
         };
-        
+
         extern(Windows) @nogc BOOL dummy(in HANDLE Process, PROCESS_MEMORY_COUNTERS* ppsmemCounters, DWORD cb) @system nothrow { return 0; }
-        
+
         alias typeof(&dummy) func_GetProcessMemoryInfo;
         __gshared func_GetProcessMemoryInfo GetProcessMemoryInfo;
         __gshared DWORD psApiError;
     }
-    
+
     @nogc @trusted bool isPsApiLoaded() {
         return GetProcessMemoryInfo !is null;
     }
-    
+
     shared static this()
     {
         HMODULE psApiLib = LoadLibraryA("Psapi");
         if (psApiLib) {
             GetProcessMemoryInfo = cast(func_GetProcessMemoryInfo)GetProcAddress(psApiLib, "GetProcessMemoryInfo");
         }
-        
+
         if (GetProcessMemoryInfo is null) {
             psApiError = GetLastError();
         }
     }
-    
+
     struct SystemMemInfo
     {
         @nogc @safe ulong totalRAM() const nothrow {
@@ -201,7 +201,7 @@ version(ResUsageDocs)
         @nogc @safe double usedRAMPercent() const nothrow {
             return percent(totalRAM, usedRAM);
         }
-        
+
         @nogc @safe ulong totalVirtMem() const nothrow {
             return memInfo.ullTotalPageFile;
         }
@@ -217,7 +217,7 @@ version(ResUsageDocs)
         @nogc @safe double usedVirtMemPercent() const nothrow {
             return percent(totalVirtMem, usedVirtMem);
         }
-        
+
         @trusted void update() {
             memInfo.dwLength = MEMORYSTATUSEX.sizeof;
             wenforce(GlobalMemoryStatusEx(&memInfo), "Could not get memory status");
@@ -225,7 +225,7 @@ version(ResUsageDocs)
     private:
         MEMORYSTATUSEX memInfo;
     }
-    
+
     struct ProcessMemInfo
     {
         @nogc @safe ulong usedRAM() const nothrow {
@@ -234,39 +234,39 @@ version(ResUsageDocs)
         @nogc @safe ulong usedVirtMem() const nothrow {
             return pmc.PrivateUsage;
         }
-        
+
         @trusted void update() {
             if (!isPsApiLoaded()) {
                 throw new WindowsException(psApiError, "Psapi.dll is not loaded");
             }
-        
+
             HANDLE handle = openProcess(pid);
             scope(exit) CloseHandle(handle);
-            
+
             wenforce(GetProcessMemoryInfo(handle, cast(PROCESS_MEMORY_COUNTERS*)&pmc, pmc.sizeof), "Could not get process memory info");
         }
-        
+
         @nogc @safe int processID() const nothrow {
             return pid;
         }
-        
+
     private:
         void initialize() {
             pid = thisProcessID;
         }
-    
+
         void initialize(int procId) {
             pid = procId;
         }
-        
+
         void initialize(HANDLE procHandle) {
             pid = GetProcessId(procHandle);
         }
-    
+
         int pid;
         PROCESS_MEMORY_COUNTERS_EX pmc;
     }
-    
+
 } else version(linux) {
     private {
         static if (is(typeof({ import core.sys.linux.sys.sysinfo; }))) {
@@ -294,7 +294,7 @@ version(ResUsageDocs)
             int sysinfo(sysinfo_ *info);
         }
     }
-    
+
     private @trusted void memoryUsedHelper(const(char)* proc, ref c_ulong vsize, ref c_long rss)
     {
         FILE* f = errnoEnforce(fopen(proc, "r"));
@@ -328,7 +328,7 @@ version(ResUsageDocs)
               ) == 2);
         rss *= sysconf(_SC_PAGESIZE);
     }
-    
+
     struct SystemMemInfo
     {
         @nogc @safe ulong totalRAM() const nothrow {
@@ -350,7 +350,7 @@ version(ResUsageDocs)
         @nogc @safe double usedRAMPercent() const nothrow {
             return percent(totalRAM, usedRAM);
         }
-        
+
         @nogc @safe ulong totalVirtMem() const nothrow {
             ulong total = memInfo.totalram + memInfo.totalswap;
             total *= memInfo.mem_unit;
@@ -370,14 +370,14 @@ version(ResUsageDocs)
         @nogc @safe double usedVirtMemPercent() const nothrow {
             return percent(totalVirtMem, usedVirtMem);
         }
-        
+
         @trusted void update() {
             errnoEnforce(sysinfo(&memInfo) == 0);
         }
     private:
         sysinfo_ memInfo;
     }
-    
+
     struct ProcessMemInfo
     {
         @nogc @safe ulong usedRAM() const nothrow {
@@ -386,38 +386,38 @@ version(ResUsageDocs)
         @nogc @safe ulong usedVirtMem() const nothrow {
             return vsize;
         }
-        
+
         @trusted void update() {
             memoryUsedHelper(proc, vsize, rss);
         }
-        
+
         @nogc @safe int processID() const nothrow {
             return pid;
         }
-        
+
     private:
         void initialize() {
             pid = thisProcessID;
             proc = procSelf;
         }
-    
+
         void initialize(int procId) {
             pid = procId;
             proc = procOfPid(pid);
         }
-    
+
         int pid;
         const(char)* proc;
         c_ulong vsize;
         c_long rss;
     }
 } else version(FreeBSD) {
-    
+
     private {
         import core.sys.posix.fcntl;
-        
+
         struct kvm_t;
-        
+
         struct kvm_swap {
             char[32] ksw_devname;
             int ksw_used;
@@ -426,18 +426,18 @@ version(ResUsageDocs)
             int ksw_reserved1;
             int ksw_reserved2;
         };
-        
+
         extern(C) @nogc @system nothrow {
             int sysctl(const(int)* name, uint namelen, void *oldp, size_t *oldlenp, const(void)* newp, size_t newlen);
             int sysctlbyname(const(char)* name, void *oldp, size_t *oldlenp, const(void)* newp, size_t newlen);
-            
+
             kvm_t *kvm_open(const(char)*, const(char)*, const(char)*, int, const(char)*);
             int kvm_close(kvm_t *);
             int kvm_getswapinfo(kvm_t*, kvm_swap*, int, int);
-            
+
             int getpagesize();
         }
-        
+
     }
 
     struct SystemMemInfo
@@ -457,7 +457,7 @@ version(ResUsageDocs)
         @nogc @safe double usedRAMPercent() const nothrow {
             return percent(totalRAM, usedRAM);
         }
-        
+
         @nogc @safe ulong totalVirtMem() const nothrow {
             return _totalVirtMem;
         }
@@ -473,41 +473,41 @@ version(ResUsageDocs)
         @nogc @safe double usedVirtMemPercent() const nothrow {
             return percent(totalVirtMem, usedVirtMem);
         }
-        
+
         @trusted void update() {
             kvm_t* kvmh = errnoEnforce(kvm_open(null, "/dev/null", "/dev/null", O_RDONLY, "kvm_open"));
             scope(exit) kvm_close(kvmh);
             kvm_swap k_swap;
-            
+
             errnoEnforce(kvm_getswapinfo(kvmh, &k_swap, 1, 0) != -1);
-            
+
             ulong pageSize = cast(ulong)getpagesize();
-            
+
             static @trusted int ctlValueByName(const(char)* name) {
                 int value;
                 size_t len = int.sizeof;
                 errnoEnforce(sysctlbyname(name, &value, &len, null, 0) == 0);
                 return value;
             }
-            
+
             int totalPages = ctlValueByName("vm.stats.vm.v_page_count");
             int freePages = ctlValueByName("vm.stats.vm.v_free_count");
-            
+
             _totalRam = cast(ulong)totalPages * pageSize;
             _freeRam = cast(ulong)freePages * pageSize;
-            
+
             _totalVirtMem = cast(ulong)k_swap.ksw_total * pageSize + _totalRam;
             _freeVirtMem = cast(ulong)(k_swap.ksw_total - k_swap.ksw_used) * pageSize + _freeRam;
-            
+
         }
     private:
         ulong _totalRam;
         ulong _freeRam;
-        
+
         ulong _totalVirtMem;
         ulong _freeVirtMem;
     }
-    
+
     struct ProcessMemInfo
     {
         @nogc @safe ulong usedRAM() const nothrow {
@@ -516,24 +516,24 @@ version(ResUsageDocs)
         @nogc @safe ulong usedVirtMem() const nothrow {
             return 0;
         }
-        
+
         @trusted void update() {
-            
+
         }
-        
+
         @nogc @safe int processID() const nothrow {
             return pid;
         }
-        
+
     private:
         void initialize() {
             pid = thisProcessID;
         }
-    
+
         void initialize(int procId) {
             pid = procId;
         }
-    
+
         int pid;
     }
 } else version(OSX) {
@@ -554,7 +554,7 @@ version(ResUsageDocs)
         @nogc @safe double usedRAMPercent() const nothrow {
             return 0;
         }
-        
+
         @nogc @safe ulong totalVirtMem() const nothrow {
             return 0;
         }
@@ -573,7 +573,7 @@ version(ResUsageDocs)
         @trusted void update() {
         }
     }
-    
+
     struct ProcessMemInfo
     {
         @nogc @safe ulong usedRAM() const nothrow {
@@ -582,21 +582,21 @@ version(ResUsageDocs)
         @nogc @safe ulong usedVirtMem() const nothrow {
             return 0;
         }
-        
+
         @trusted void update() {
         }
-        
+
         @nogc @safe int processID() const nothrow {
             return pid;
         }
-        
+
     private:
         void initialize() {
         }
-    
+
         void initialize(int procId) {
         }
-    
+
         int pid;
         const(char)* proc;
     }
