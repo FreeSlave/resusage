@@ -92,6 +92,8 @@ Prints amount of virtual and physical memory currently used by process, in bytes
 
 ### [CPU Watcher](examples/cpuwatcher.d)
 
+All following examples show CPU time used by a system or by a process in the 0-100% range.
+
 Watch system CPU time:
 
     dub examples/cpuwatcher.d
@@ -100,7 +102,7 @@ Watch process CPU time:
 
     dub examples/cpuwatcher.d `pidof process`
 
-Spawn prcoess and watch for its CPU time:
+Spawn process and watch for its CPU time:
 
     dub examples/cpuwatcher.d --spawn firefox
 
@@ -122,7 +124,7 @@ E.g. if you have 4 cores and run this example with 2 threads it will report 50% 
 
 In order to provide some functionality **resusage** dynamically loads the following libraries at startup:
  
-1. [GetProcessMemoryInfo](https://msdn.microsoft.com/en-us/library/windows/desktop/ms683219(v=vs.85).aspx) to get memory (physical and virtual) used by specific process.
+1. [Psapi.dll](https://docs.microsoft.com/en-us/windows/win32/psapi/psapi-reference) for [GetProcessMemoryInfo](https://msdn.microsoft.com/en-us/library/windows/desktop/ms683219(v=vs.85).aspx).
 2. [Pdh.dll](https://msdn.microsoft.com/en-us/library/windows/desktop/aa373083(v=vs.85).aspx) to calculate CPU time used by system.
 
 If Psapi.dll or Pdh.dll could not be loaded, corresponding functions will always throw *WindowsException*.
