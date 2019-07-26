@@ -15,10 +15,6 @@ import resusage.common;
 
 import std.exception;
 
-private {
-    import std.parallelism : totalCPUs;
-}
-
 ///Base interface for cpu watchers
 interface CPUWatcher
 {
@@ -178,7 +174,6 @@ version(Windows)
 
             double percent = (sys.QuadPart - lastSysCPU.QuadPart) + (user.QuadPart - lastUserCPU.QuadPart);
             percent /= (now.QuadPart - lastCPU.QuadPart);
-            percent /= totalCPUs;
 
             lastCPU = now;
             lastUserCPU = user;
@@ -357,7 +352,6 @@ static if (is(typeof({import core.sys.posix.time : CLOCK_MONOTONIC;})))
             } else {
                 percent = (nowCPUTime - lastCPUTime).total!"hnsecs";
                 percent /= (nowTime - lastTime).total!"hnsecs";
-                percent /= totalCPUs;
                 percent *= 100;
             }
             lastTime = nowTime;
@@ -424,9 +418,18 @@ final class ProcessCPUWatcher : CPUWatcher
         _watcher.initialize();
     }
     /**
-     * CPU time used by underlying process, in percents.
+     * CPU time used by underlying process, in percents between 0 and 100.
      */
     @safe override double current() {
+        import std.parallelism : totalCPUs;
+        return _watcher.current() / totalCPUs;
+    }
+
+    /**
+     * CPU time used by underlying process. The value range depends on CPU count.
+     * E.g. on the system with 4 CPUs it will be between 0 and 400 (considering all units are available for the process).
+     */
+    @safe double currentTotal() {
         return _watcher.current();
     }
 
