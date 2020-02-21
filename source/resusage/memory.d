@@ -379,7 +379,7 @@ version(ResUsageDocs)
 
     struct ProcessMemInfo
     {
-        @nogc @safe ulong usedRAM() const nothrow {
+        @nogc @trusted ulong usedRAM() const nothrow {
             return rss * PAGE_SIZE;
         }
         @nogc @safe ulong usedVirtMem() const nothrow {
