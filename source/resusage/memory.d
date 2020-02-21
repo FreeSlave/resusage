@@ -295,7 +295,8 @@ version(ResUsageDocs)
         }
     }
 
-    private @trusted void memoryUsedHelper(const(char)* proc, ref c_ulong vsize, ref c_long rss)
+    private @trusted void memoryUsedHelper(const(char)* proc, ref c_ulong vsize,
+                                           ref c_long rss, size_t pagesize)
     {
         FILE* f = errnoEnforce(fopen(proc, "r"));
         scope(exit) fclose(f);
@@ -326,7 +327,7 @@ version(ResUsageDocs)
                      "%ld ", //rss
                &vsize, &rss
               ) == 2);
-        rss *= sysconf(_SC_PAGESIZE);
+        rss *= pagesize;
     }
 
     struct SystemMemInfo
@@ -388,7 +389,7 @@ version(ResUsageDocs)
         }
 
         @trusted void update() {
-            memoryUsedHelper(proc, vsize, rss);
+            memoryUsedHelper(proc, vsize, rss, pagesize);
         }
 
         @nogc @safe int processID() const nothrow {
@@ -399,17 +400,20 @@ version(ResUsageDocs)
         void initialize() {
             pid = thisProcessID;
             proc = procSelf;
+            pagesize = sysconf(_SC_PAGESIZE);
         }
 
         void initialize(int procId) {
             pid = procId;
             proc = procOfPid(pid);
+            pagesize = sysconf(_SC_PAGESIZE);
         }
 
         int pid;
         const(char)* proc;
         c_ulong vsize;
         c_long rss;
+        size_t pagesize;
     }
 } else version(FreeBSD) {
 
