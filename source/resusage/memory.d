@@ -295,8 +295,7 @@ version(ResUsageDocs)
         }
     }
 
-    private @trusted void memoryUsedHelper(const(char)* proc, ref c_ulong vsize,
-                                           ref c_long rss, size_t pagesize)
+    private @trusted void memoryUsedHelper(const(char)* proc, ref c_ulong vsize, ref c_long rss)
     {
         FILE* f = errnoEnforce(fopen(proc, "r"));
         scope(exit) fclose(f);
@@ -327,7 +326,6 @@ version(ResUsageDocs)
                      "%ld ", //rss
                &vsize, &rss
               ) == 2);
-        rss *= pagesize;
     }
 
     struct SystemMemInfo
@@ -381,15 +379,15 @@ version(ResUsageDocs)
 
     struct ProcessMemInfo
     {
-        @nogc @safe ulong usedRAM() const nothrow {
-            return rss;
+        @nogc @trusted ulong usedRAM() const nothrow {
+            return rss * PAGE_SIZE;
         }
         @nogc @safe ulong usedVirtMem() const nothrow {
             return vsize;
         }
 
         @trusted void update() {
-            memoryUsedHelper(proc, vsize, rss, pagesize);
+            memoryUsedHelper(proc, vsize, rss);
         }
 
         @nogc @safe int processID() const nothrow {
@@ -400,21 +398,26 @@ version(ResUsageDocs)
         void initialize() {
             pid = thisProcessID;
             proc = procSelf;
-            pagesize = sysconf(_SC_PAGESIZE);
         }
 
         void initialize(int procId) {
             pid = procId;
             proc = procOfPid(pid);
-            pagesize = sysconf(_SC_PAGESIZE);
         }
 
         int pid;
         const(char)* proc;
         c_ulong vsize;
         c_long rss;
-        size_t pagesize;
     }
+
+    __gshared size_t PAGE_SIZE;
+
+    shared static this()
+    {
+        PAGE_SIZE = sysconf(_SC_PAGESIZE);
+    }
+
 } else version(FreeBSD) {
 
     private {
