@@ -2,7 +2,8 @@
 
 Obtaining of virtual memory, RAM and CPU usage by the whole system or by single process.
 
-[![Build Status](https://travis-ci.org/FreeSlave/resusage.svg?branch=master)](https://travis-ci.org/FreeSlave/resusage) [![Windows Build Status](https://ci.appveyor.com/api/projects/status/github/FreeSlave/resusage?branch=master&svg=true)](https://ci.appveyor.com/project/FreeSlave/resusage)
+[![Build Status](https://github.com/FreeSlave/resusage/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/FreeSlave/resusage/actions/workflows/ci.yml)
+[![Windows Build Status](https://ci.appveyor.com/api/projects/status/github/FreeSlave/resusage?branch=master&svg=true)](https://ci.appveyor.com/project/FreeSlave/resusage)
 
 Currently works on Linux and Windows.
 
