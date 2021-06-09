@@ -195,7 +195,7 @@ version(Windows)
     {
         FILE* f = errnoEnforce(fopen("/proc/stat", "r"));
         scope(exit) fclose(f);
-        errnoEnforce(fscanf(f, "cpu %Lu %Lu %Lu %Lu", &totalUser, &totalUserLow, &totalSys, &totalIdle) == 4);
+        errnoEnforce(fscanf(f, "cpu %llu %llu %llu %llu", &totalUser, &totalUserLow, &totalSys, &totalIdle) == 4);
     }
 
     private struct PlatformSystemCPUWatcher
