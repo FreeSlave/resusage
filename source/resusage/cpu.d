@@ -172,8 +172,11 @@ version(Windows)
             ULARGE_INTEGER now, sys, user;
             timesHelper(pid, now, sys, user);
 
-            double percent = (sys.QuadPart - lastSysCPU.QuadPart) + (user.QuadPart - lastUserCPU.QuadPart);
-            percent /= (now.QuadPart - lastCPU.QuadPart);
+            auto cpuTime = (sys.QuadPart - lastSysCPU.QuadPart) + (user.QuadPart - lastUserCPU.QuadPart);
+            auto timeDiff = now.QuadPart - lastCPU.QuadPart;
+            if (timeDiff == 0) // guard against division by zero
+                return 0;
+            double percent = cpuTime / cast(double)timeDiff;
 
             lastCPU = now;
             lastUserCPU = user;
