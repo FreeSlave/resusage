@@ -17,7 +17,7 @@ version(Windows) {
     import core.sys.windows.windows;
     import std.windows.syserror;
 
-    extern(Windows) @nogc DWORD GetProcessId(in HANDLE Process) @system nothrow;
+    extern(Windows) @nogc DWORD GetProcessId(HANDLE Process) @system nothrow;
 
     extern(Windows) @nogc HANDLE OpenProcess(DWORD dwDesiredAccess, BOOL  bInheritHandle, DWORD dwProcessId) @system nothrow;
     extern(Windows) @nogc BOOL GetExitCodeProcess(HANDLE  hProcess, LPDWORD lpExitCode) @system nothrow;

@@ -161,7 +161,7 @@ version(ResUsageDocs)
             SIZE_T PrivateUsage;
         };
 
-        extern(Windows) @nogc BOOL dummy(in HANDLE Process, PROCESS_MEMORY_COUNTERS* ppsmemCounters, DWORD cb) @system nothrow { return 0; }
+        extern(Windows) @nogc BOOL dummy(HANDLE Process, PROCESS_MEMORY_COUNTERS* ppsmemCounters, DWORD cb) @system nothrow { return 0; }
 
         alias typeof(&dummy) func_GetProcessMemoryInfo;
         __gshared func_GetProcessMemoryInfo GetProcessMemoryInfo;
