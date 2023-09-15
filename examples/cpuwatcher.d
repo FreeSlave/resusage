@@ -54,5 +54,6 @@ int main(string[] args)
         }
         double percent = cpuWatcher.current();
         writefln("%s%%", percent);
+        stdout.flush();
     }
 }
