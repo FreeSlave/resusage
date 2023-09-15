@@ -52,8 +52,18 @@ int main(string[] args)
                 return 0;
             }
         }
-        double percent = cpuWatcher.current();
+        double percent;
+        try
+        {
+            percent = cpuWatcher.current();
+        }
+        catch(Exception e)
+        {
+            stderr.writefln("Couldn't get cputime: %s", e.msg);
+            break;
+        }
         writefln("%s%%", percent);
         stdout.flush();
     }
+    return 0;
 }

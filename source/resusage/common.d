@@ -20,6 +20,7 @@ version(Windows) {
     extern(Windows) @nogc DWORD GetProcessId(in HANDLE Process) @system nothrow;
 
     extern(Windows) @nogc HANDLE OpenProcess(DWORD dwDesiredAccess, BOOL  bInheritHandle, DWORD dwProcessId) @system nothrow;
+    extern(Windows) @nogc BOOL GetExitCodeProcess(HANDLE  hProcess, LPDWORD lpExitCode) @system nothrow;
     private enum PROCESS_QUERY_INFORMATION = 0x0400;
     @trusted HANDLE openProcess(int pid) {
         return wenforce(OpenProcess(PROCESS_QUERY_INFORMATION, TRUE, pid), "Could not open process");

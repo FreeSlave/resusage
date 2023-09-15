@@ -141,13 +141,22 @@ version(Windows)
         HANDLE handle = openProcess(pid);
         scope(exit) CloseHandle(handle);
 
-        FILETIME ftime, fsys, fuser;
-        GetSystemTimeAsFileTime(&ftime);
-        memcpy(&now, &ftime, FILETIME.sizeof);
+        DWORD exitCode;
+        wenforce(GetExitCodeProcess(handle, &exitCode), "Couldn't access process code");
+        if (exitCode == STILL_ACTIVE)
+        {
+            FILETIME ftime, fsys, fuser;
+            GetSystemTimeAsFileTime(&ftime);
+            memcpy(&now, &ftime, FILETIME.sizeof);
 
-        GetProcessTimes(handle, &ftime, &ftime, &fsys, &fuser);
-        memcpy(&sys, &fsys, FILETIME.sizeof);
-        memcpy(&user, &fuser, FILETIME.sizeof);
+            GetProcessTimes(handle, &ftime, &ftime, &fsys, &fuser);
+            memcpy(&sys, &fsys, FILETIME.sizeof);
+            memcpy(&user, &fuser, FILETIME.sizeof);
+        }
+        else
+        {
+            throw new WindowsException(ERROR_SUCCESS, "Process has exited");
+        }
     }
 
     private struct PlatformProcessCPUWatcher
